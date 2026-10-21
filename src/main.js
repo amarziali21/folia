@@ -227,7 +227,7 @@ function wire() {
 
 function fatal(msg) {
   const d = document.createElement('div'); d.className = 'fatal';
-  d.innerHTML = `<div class="panel"><h2>Margine could not start</h2><p></p></div>`;
+  d.innerHTML = `<div class="panel"><h2>Folia could not start</h2><p></p></div>`;
   d.querySelector('p').textContent = msg;
   document.body.appendChild(d);
 }
@@ -236,7 +236,7 @@ async function init() {
   wire();
   await initFonts();
   loadDefaults();
-  S.author = load('margine.author') || '';
+  S.author = load('folia.author') || '';
   $$('.tabs [data-mode]').forEach(b => b.setAttribute('aria-selected', b.dataset.mode === S.mode));
   renderTools(); setTool('select');
   engine.startEngine().then(() => updateStatus());
@@ -245,5 +245,5 @@ async function init() {
   await openFiles([{ name: 'Sample - Delivery report.pdf', bytes: sample }], { replace: true, sample: true });
   if (!params.has('quiet')) toast('This is a sample PDF. Open your own file or drop it onto the page.', 'info', 6500);
 }
-window.margine = { S, views, openFiles, undo, redo, setTool, setMode, select, rebuildViews, setZoom, commit, engine, closeEditors };
+window.folia = { S, views, openFiles, undo, redo, setTool, setMode, select, rebuildViews, setZoom, commit, engine, closeEditors };
 init().catch(e => { console.error(e); fatal('Start-up error: ' + (e?.message || e)); });

@@ -67,7 +67,7 @@ export function updateTitle() {
   $('#sampleChip').hidden = !S.isSample;
   $('#lockChip').hidden = !(S.doc.protect && (S.doc.protect.user || S.doc.protect.owner));
   $('#dirtyDot').hidden = !S.dirty;
-  document.title = (S.dirty ? '• ' : '') + (names[0] || 'Margine') + ' – Margine';
+  document.title = (S.dirty ? '• ' : '') + (names[0] || 'Folia') + ' – Folia';
 }
 
 /* ------------------------------------------------------------ opening files */

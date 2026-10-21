@@ -1,5 +1,5 @@
 {
-  "name": "margine-pdf",
+  "name": "folia",
   "version": "0.2.0",
   "private": true,
   "description": "PDF editor in the browser: pages, native comments, content editing, redaction and document tools.",

@@ -30,7 +30,7 @@ const W = 595.28, H = 841.89;
 // client coordinates of PDF points on page i, after scrolling the first point into view
 async function at(i, pts) {
   return page.evaluate(([i, pts]) => {
-    const m = window.margine, pv = m.views.get(m.S.pages[i].id), desk = document.getElementById('desk');
+    const m = window.folia, pv = m.views.get(m.S.pages[i].id), desk = document.getElementById('desk');
     const [cx, cy] = pv.vp.convertToViewportPoint(pts[0][0], pts[0][1]);
     desk.scrollTop = pv.el.offsetTop + cy - desk.clientHeight / 2;
     desk.scrollLeft = Math.max(0, pv.el.offsetLeft + cx - desk.clientWidth / 2);
@@ -44,9 +44,9 @@ async function dragPath(i, pts, steps = 6) {
   for (const p of c.slice(1)) await page.mouse.move(...p, { steps });
   await page.mouse.up();
 }
-const rendered = () => page.waitForFunction(() => { const m = window.margine, pv = m.views.get(m.S.pages[0]?.id); return pv && pv.key; }, null, { timeout: 30000 });
+const rendered = () => page.waitForFunction(() => { const m = window.folia, pv = m.views.get(m.S.pages[0]?.id); return pv && pv.key; }, null, { timeout: 30000 });
 const click = async (i, x, y) => { const [c] = await at(i, [[x, y]]); await page.mouse.click(...c); };
-const idle = () => page.waitForFunction(() => { const m = window.margine; return !document.querySelector('.ed-content') && m.S.edits.every(e => e.kind === 'redact' || true); }).then(() => page.waitForTimeout(700));
+const idle = () => page.waitForFunction(() => { const m = window.folia; return !document.querySelector('.ed-content') && m.S.edits.every(e => e.kind === 'redact' || true); }).then(() => page.waitForTimeout(700));
 async function save(name) {
   const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 60000 }), page.click('#btnSave')]);
   const f = path.join(out, name); await dl.saveAs(f); return fs.readFileSync(f);
@@ -59,8 +59,8 @@ function mText(bytes, pageIdx, pw) {
 
 try {
   await page.goto(BASE);
-  await page.waitForFunction(() => window.margine?.S.pages.length === 2, null, { timeout: 30000 });
-  const hasEngine = await page.evaluate(async () => { for (let i = 0; i < 100 && !window.margine.engine.engine.available && !window.margine.engine.engine.error; i++) await new Promise(r => setTimeout(r, 100)); return window.margine.engine.engine.available; });
+  await page.waitForFunction(() => window.folia?.S.pages.length === 2, null, { timeout: 30000 });
+  const hasEngine = await page.evaluate(async () => { for (let i = 0; i < 100 && !window.folia.engine.engine.available && !window.folia.engine.engine.error; i++) await new Promise(r => setTimeout(r, 100)); return window.folia.engine.engine.available; });
   console.log('MuPDF in the page:', hasEngine);
   await page.waitForTimeout(800);
   await shot('start');
@@ -89,7 +89,7 @@ try {
     await page.keyboard.press('Escape');
     await page.waitForTimeout(1200);
     await shot('text-edited');
-    const ed = await page.evaluate(() => window.margine.S.edits.map(e => [e.kind, e.text, (e.remove || []).length]));
+    const ed = await page.evaluate(() => window.folia.S.edits.map(e => [e.kind, e.text, (e.remove || []).length]));
     assert.ok(ed.some(e => e[0] === 'text' && e[1] === 'Equipment delivery report for servers' && e[2] === 1), 'title edit recorded');
     assert.ok(ed.some(e => e[0] === 'text' && e[1] === 'Text added at the bottom' && e[2] === 0), 'new text recorded');
   }
@@ -129,7 +129,7 @@ try {
   await page.fill('#lkPage', '2');
   await page.click('.pop [data-act="ok"]');
   // add a bookmark for page 2
-  await page.evaluate(() => { window.margine.S.cur = window.margine.S.pages[1].id; });
+  await page.evaluate(() => { window.folia.S.cur = window.folia.S.pages[1].id; });
   await page.click('#tools [data-act="bookmarks"]');
   await page.click('#bmTools [data-bm="add"]');
   await page.keyboard.type('Signature and acceptance'); await page.keyboard.press('Enter');
@@ -139,7 +139,7 @@ try {
   /* ---------- pages ---------- */
   await page.click('.tabs [data-mode="pages"]');
   await page.click('#tools [data-act="blank"]'); // after page 2
-  await page.waitForFunction(() => window.margine.S.pages.length === 3);
+  await page.waitForFunction(() => window.folia.S.pages.length === 3);
   await page.click('#tools [data-tool="crop"]');
   await dragPath(1, [[40, 40], [W - 40, H - 40]]);
   await page.click('.pop [data-act="this"]');
@@ -185,10 +185,10 @@ try {
   /* ---------- reopen the result: edits become plain content, comments stay editable ---------- */
   await page.evaluate(async b64 => {
     const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-    await window.margine.openFiles([{ name: 'result.pdf', bytes: u }], { replace: true });
+    await window.folia.openFiles([{ name: 'result.pdf', bytes: u }], { replace: true });
   }, bytes.toString('base64'));
   await rendered(); await page.waitForTimeout(500);
-  const re = await page.evaluate(() => ({ pages: window.margine.S.pages.length, annots: window.margine.S.annots.map(a => a.type), bms: window.margine.S.bookmarks.map(b => b.title) }));
+  const re = await page.evaluate(() => ({ pages: window.folia.S.pages.length, annots: window.folia.S.annots.map(a => a.type), bms: window.folia.S.bookmarks.map(b => b.title) }));
   console.log('reopened', re);
   assert.equal(re.pages, 3);
   assert.ok(re.annots.includes('link') && re.annots.includes('underline'), 'link and underline editable after reopening');
@@ -208,7 +208,7 @@ try {
     // open it again in the app with the password dialog
     const opening = page.evaluate(async b64 => {
       const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
-      return window.margine.openFiles([{ name: 'protected.pdf', bytes: u }], { replace: true });
+      return window.folia.openFiles([{ name: 'protected.pdf', bytes: u }], { replace: true });
     }, enc.toString('base64'));
     await page.waitForSelector('#pwInput');
     await page.fill('#pwInput', 'sbagliata'); await page.click('.panel [data-act="yes"]');

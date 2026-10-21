@@ -168,7 +168,7 @@ export async function buildPdf(pageIds, { forSave = false } = {}) {
     const t = m ? m.title : first.getTitle(), au = m ? m.author : first.getAuthor(), su = m ? m.subject : first.getSubject(), kw = m ? m.keywords : first.getKeywords();
     if (t) out.setTitle(t); if (au) out.setAuthor(au); if (su) out.setSubject(su); if (kw) out.setKeywords(Array.isArray(kw) ? kw : String(kw).split(/[,;]\s*/).filter(Boolean));
   } catch { /* unreadable info dictionary */ }
-  out.setProducer('Margine PDF'); out.setModificationDate(new Date());
+  out.setProducer('Folia'); out.setModificationDate(new Date());
   // form values typed in the editor
   if (Object.keys(S.formValues).length && out.catalog.get(N('AcroForm'))) {
     let form = null; try { form = out.getForm(); } catch { warnings.push('the form could not be read'); }

@@ -1,4 +1,4 @@
-# Margine PDF
+# Folia
 
 A PDF editor that runs entirely in the browser. Files never leave the computer of the person using it.
 
@@ -58,7 +58,7 @@ It needs two repository secrets (*Settings → Secrets and variables → Actions
 - `CLOUDFLARE_API_TOKEN`: a token with the *Account › Cloudflare Pages › Edit* permission;
 - `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID.
 
-The first deploy creates the `margine-pdf` Pages project. Until the secrets exist, deploying is skipped without failing the run.
+The first deploy creates the `folia` Pages project. Until the secrets exist, deploying is skipped without failing the run.
 
 The `deps-snapshot.yml` workflow copies the npm packages used by the build to the `dev-deps` branch. It only serves development environments without npm access and can be ignored.
 

@@ -37,7 +37,7 @@ const DEF_BASE = {
 };
 export let DEF = structuredClone(DEF_BASE);
 export function loadDefaults() {
-  try { const saved = JSON.parse(load('margine.defaults') || 'null'); if (saved) for (const k of Object.keys(DEF)) Object.assign(DEF[k], saved[k] || {}); } catch { /* ignore */ }
+  try { const saved = JSON.parse(load('folia.defaults') || 'null'); if (saved) for (const k of Object.keys(DEF)) Object.assign(DEF[k], saved[k] || {}); } catch { /* ignore */ }
 }
 
 /* ------------------------------------------------------------ model helpers */
@@ -1011,7 +1011,7 @@ export function renderProps() {
   const author = `<label class="fld">Author <input type="text" id="pAuthor" placeholder="Your name" value="${esc(S.author)}"></label>`;
   if (!type || ((S.tool === 'image' || S.tool === 'sign') && !s) || (type === 'cimage' && !s) || (type === 'ctext' && !s && S.tool !== 'edittext')) {
     el.innerHTML = `<span class="hint">${esc(HINTS[S.tool] || '')}</span>${S.mode === 'comment' ? author : ''}`;
-    $('#pAuthor')?.addEventListener('change', e => { S.author = e.target.value.trim(); store('margine.author', S.author); });
+    $('#pAuthor')?.addEventListener('change', e => { S.author = e.target.value.trim(); store('folia.author', S.author); });
     return;
   }
   let h = '';
@@ -1110,7 +1110,7 @@ function setProp(key, val, final, extra = {}) {
   const type = s?.kind === 'annot' ? s.a.type : s?.kind === 'edit' ? { text: 'ctext', redact: 'redact' }[s.e.kind] : TOOL_TYPE[S.tool];
   if (type === 'ctext') { if (key === 'font') Object.assign(DEF.ctext, extra); else if (key === 'size' || key === 'color') DEF.ctext[key] = val; }
   else if (key !== 'contents' && DEF[type] && !(s?.a?.type === 'ink' && s.a.contents === 'Signature')) DEF[type][key] = val;
-  if (final) store('margine.defaults', JSON.stringify(DEF));
+  if (final) store('folia.defaults', JSON.stringify(DEF));
 }
 
 /* ------------------------------------------------------------ tools */
