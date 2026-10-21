@@ -1,0 +1,43 @@
+# Publishes the exact npm packages used by the build to the `dev-deps` branch, so a development
+# environment without npm access can use the same files. Run it manually or when dependencies change.
+name: Snapshot dipendenze
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [package.json, package-lock.json, .github/workflows/deps-snapshot.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Installa
+        run: |
+          if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install --ignore-scripts --no-audit --no-fund; fi
+      - name: Prepara il pacchetto
+        run: |
+          mkdir -p /tmp/snap/packages
+          cp package-lock.json /tmp/snap/
+          for p in mupdf pdf-lib pdfjs-dist esbuild; do (cd /tmp/snap/packages && npm pack "$p@$(node -p "require('$GITHUB_WORKSPACE/node_modules/$p/package.json').version")" --silent); done
+          # pdf-lib runtime dependencies
+          for p in tslib @pdf-lib/standard-fonts @pdf-lib/upng pako; do v=$(node -p "require('$GITHUB_WORKSPACE/node_modules/$p/package.json').version" 2>/dev/null) && (cd /tmp/snap/packages && npm pack "$p@$v" --silent) || true; done
+          # esbuild native binary for linux x64
+          v=$(node -p "require('./node_modules/esbuild/package.json').version"); (cd /tmp/snap/packages && npm pack "@esbuild/linux-x64@$v" --silent)
+          ls -la /tmp/snap/packages
+          npm ls --depth=0 > /tmp/snap/versions.txt || true
+      - name: Pubblica sul ramo dev-deps
+        run: |
+          cd /tmp/snap
+          git init -q -b dev-deps
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "Snapshot dipendenze ($GITHUB_SHA)"
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" dev-deps

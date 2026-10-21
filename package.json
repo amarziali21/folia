@@ -1,0 +1,26 @@
+{
+  "name": "margine-pdf",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Editor PDF nel browser: pagine, commenti nativi, modifica del contenuto, redazione e strumenti documento.",
+  "type": "module",
+  "license": "AGPL-3.0-or-later",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "node scripts/build.mjs --watch --serve",
+    "serve": "node scripts/serve.mjs dist",
+    "test": "node tests/unit/content.test.mjs && node tests/e2e.mjs"
+  },
+  "dependencies": {
+    "mupdf": "^1.26.0",
+    "pdf-lib": "1.17.1",
+    "pdfjs-dist": "6.2.108"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "playwright": "1.56.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
