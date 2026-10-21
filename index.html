@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Margine PDF</title>
+<meta name="description" content="Editor PDF nel browser: pagine, commenti, modifica del testo e delle immagini, redazione, intestazioni, filigrane, segnalibri e protezione. I file restano sul tuo computer.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600&family=Instrument+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-tool="select" data-mode="comment">
+<header class="bar">
+  <div class="brand">
+    <span class="mark">Margine</span>
+    <span class="doc"><span id="docName" class="doc-name">Caricamento…</span><span id="sampleChip" class="chip" hidden>Esempio</span><span id="lockChip" class="chip lock" hidden>Protetto</span><span id="dirtyDot" class="dirty" hidden title="Modifiche non salvate"></span></span>
+  </div>
+  <div class="group" role="group" aria-label="File">
+    <button class="ib" id="btnRail" type="button" title="Pagine" aria-label="Mostra pagine" data-icon="pages"></button>
+    <button class="btn ghost" id="btnOpen" type="button" title="Apri un PDF (Ctrl+O)">Apri</button>
+    <button class="btn ghost" id="btnAdd" type="button" title="Inserisci un PDF dopo la pagina corrente">Inserisci PDF</button>
+  </div>
+  <nav class="tabs" role="tablist" aria-label="Strumenti">
+    <button type="button" role="tab" data-mode="comment">Commenta</button>
+    <button type="button" role="tab" data-mode="edit">Modifica</button>
+    <button type="button" role="tab" data-mode="pages">Pagine</button>
+    <button type="button" role="tab" data-mode="doc">Documento</button>
+  </nav>
+  <div class="group" role="group" aria-label="Cronologia e zoom">
+    <button class="ib" type="button" id="btnSearch" data-icon="search" title="Cerca (Ctrl+F)" aria-label="Cerca"></button>
+    <span class="sep"></span>
+    <button class="ib" type="button" id="btnUndo" data-icon="undo" title="Annulla (Ctrl+Z)" aria-label="Annulla" disabled></button>
+    <button class="ib" type="button" id="btnRedo" data-icon="redo" title="Ripeti (Ctrl+Y)" aria-label="Ripeti" disabled></button>
+    <span class="sep"></span>
+    <button class="ib" type="button" id="btnZoomOut" data-icon="minus" title="Riduci (Ctrl −)" aria-label="Riduci"></button>
+    <button class="btn ghost zoom-val" type="button" id="zoomVal" title="Adatta alla larghezza (Ctrl 0)">100%</button>
+    <button class="ib" type="button" id="btnZoomIn" data-icon="plus" title="Ingrandisci (Ctrl +)" aria-label="Ingrandisci"></button>
+  </div>
+  <button class="btn primary" type="button" id="btnSave" title="Salva (Ctrl+S)">Salva PDF</button>
+</header>
+
+<div class="strip">
+  <div class="group tools" role="toolbar" aria-label="Strumenti della scheda" id="tools"></div>
+  <div class="props" id="props" aria-live="polite"></div>
+</div>
+
+<main class="work">
+  <aside class="rail" id="rail" aria-label="Pagine e segnalibri">
+    <div class="rail-tabs" role="tablist">
+      <button type="button" role="tab" data-tab="pages" aria-selected="true">Pagine</button>
+      <button type="button" role="tab" data-tab="bookmarks" aria-selected="false">Segnalibri</button>
+    </div>
+    <div id="railPages" class="rail-pane">
+      <div class="rail-note" id="railNote"></div>
+      <ol id="thumbs" aria-label="Miniature delle pagine"></ol>
+    </div>
+    <div id="railBookmarks" class="rail-pane" hidden>
+      <div class="rail-head" id="bmTools" role="toolbar" aria-label="Segnalibri">
+        <button class="ib" type="button" data-bm="add" data-icon="plus" title="Aggiungi un segnalibro per la pagina corrente" aria-label="Aggiungi"></button>
+        <button class="ib" type="button" data-bm="rename" data-need data-icon="text" title="Rinomina" aria-label="Rinomina"></button>
+        <button class="ib" type="button" data-bm="here" data-need data-icon="target" title="Punta alla pagina corrente" aria-label="Punta alla pagina corrente"></button>
+        <button class="ib" type="button" data-bm="up" data-need data-icon="up" title="Sposta su" aria-label="Sposta su"></button>
+        <button class="ib" type="button" data-bm="down" data-need data-icon="down" title="Sposta giù" aria-label="Sposta giù"></button>
+        <button class="ib" type="button" data-bm="out" data-need data-icon="outdent" title="Riduci rientro" aria-label="Riduci rientro"></button>
+        <button class="ib" type="button" data-bm="in" data-need data-icon="indent" title="Aumenta rientro" aria-label="Aumenta rientro"></button>
+        <button class="ib" type="button" data-bm="del" data-need data-icon="trash" title="Elimina" aria-label="Elimina"></button>
+      </div>
+      <ol id="bmList" class="bm-list" aria-label="Segnalibri"></ol>
+    </div>
+  </aside>
+  <section class="desk" id="desk" aria-label="Documento"><div id="pages"></div></section>
+  <aside class="drawer" id="drawer" hidden aria-labelledby="drawerTitle">
+    <div class="drawer-head"><h2 id="drawerTitle"></h2><button class="ib" type="button" id="drawerClose" data-icon="close" aria-label="Chiudi" title="Chiudi"></button></div>
+    <div class="drawer-body" id="drawerBody"></div>
+  </aside>
+</main>
+
+<footer class="status" id="status">
+  <span id="stPage">—</span><span id="stFormat"></span><span id="stRedact" class="warn"></span><span class="grow"></span><span id="stEngine"></span><span id="stCursor"></span><a class="src" href="https://github.com/amarziali21/margine-pdf" target="_blank" rel="noopener">Codice sorgente (AGPL)</a>
+</footer>
+
+<input type="file" id="fileOpen" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="fileAdd" accept="application/pdf,.pdf" multiple hidden>
+<input type="file" id="fileImg" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+<input type="file" id="fileReplace" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<div class="modal" id="modal" hidden></div>
+<div class="dropzone" id="dropzone" hidden>Rilascia i PDF per aggiungerli al documento</div>
+<noscript><p class="fatal">Margine funziona solo con JavaScript attivo.</p></noscript>
+<script type="module" src="assets/app.js"></script>
+</body>
+</html>

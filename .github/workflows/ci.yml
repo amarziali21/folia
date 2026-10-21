@@ -1,0 +1,84 @@
+# Build, test and deploy. Pushes to main publish to production on Cloudflare Pages; other branches and
+# pull requests get a preview deployment. Deploys are skipped until the two Cloudflare secrets exist.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['**']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    if: github.ref != 'refs/heads/dev-deps'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Installa le dipendenze
+        run: npm ci
+      - name: Installa Chromium per i test
+        run: npx playwright install --with-deps chromium
+      - name: Build
+        run: npm run build
+      - name: Test
+        run: npm test
+      - name: Salva i risultati dei test
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+      - name: Salva il sito
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 7
+
+  deploy:
+    needs: build-test
+    runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Controlla le credenziali Cloudflare
+        id: cf
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then echo "ok=1" >> "$GITHUB_OUTPUT";
+          else echo "::notice title=Deploy saltato::Aggiungi i secret CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID per pubblicare su Cloudflare Pages."; fi
+      - uses: actions/download-artifact@v4
+        if: steps.cf.outputs.ok == '1'
+        with:
+          name: dist
+          path: dist
+      - name: Crea il progetto Pages (solo la prima volta)
+        if: steps.cf.outputs.ok == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx --yes wrangler@4 pages project create margine-pdf --production-branch=main || echo "Il progetto esiste già"
+      - name: Pubblica su Cloudflare Pages
+        if: steps.cf.outputs.ok == '1'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: npx --yes wrangler@4 pages deploy dist --project-name=margine-pdf --branch="$BRANCH" --commit-hash="$GITHUB_SHA" --commit-dirty=true
