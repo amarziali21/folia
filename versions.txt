@@ -1,0 +1,7 @@
+folia@0.2.0 /home/runner/work/margine-pdf/margine-pdf
+├── esbuild@0.28.2
+├── mupdf@1.28.1
+├── pdf-lib@1.17.1
+├── pdfjs-dist@6.2.108
+└── playwright@1.56.0
+
