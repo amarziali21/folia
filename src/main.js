@@ -242,7 +242,7 @@ async function init() {
   engine.startEngine().then(() => updateStatus());
   const params = new URLSearchParams(location.search);
   const sample = await buildSample();
-  await openFiles([{ name: 'Esempio – Verbale di consegna.pdf', bytes: sample }], { replace: true, sample: true });
+  await openFiles([{ name: 'Esempio - Verbale di consegna.pdf', bytes: sample }], { replace: true, sample: true });
   if (!params.has('quiet')) toast('Questo è un PDF di esempio. Apri il tuo file o trascinalo nella pagina.', 'info', 6500);
 }
 window.margine = { S, views, openFiles, undo, redo, setTool, setMode, select, rebuildViews, setZoom, commit, engine, closeEditors };

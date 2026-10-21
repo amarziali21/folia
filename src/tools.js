@@ -182,6 +182,7 @@ function editFromBlock(p, block) {
     blockW = Math.max(blockW, off + x1);
   }
   const text = lines.map(l => l.text.replace(/\s+$/, '')).join('\n');
+  if (hasUnsupported(text)) return { error: 'Questo testo usa caratteri che i font standard non contengono (per esempio lettere non latine o simboli matematici): modificandolo andrebbero persi.' };
   const subW = Math.max(...text.split('\n').map(t => measure(font, t, size)));
   if (lines.length === 1) { // a single line may grow up to the opposite margin of the page
     const v = meta(p).view, xs = [[v[0], v[1]], [v[2], v[1]], [v[0], v[3]], [v[2], v[3]]].map(c => local(c, first.origin)[0]);

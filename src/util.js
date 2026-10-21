@@ -115,7 +115,8 @@ export function makeZip(files) {
   e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
   return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
 }
-export const safeName = s => String(s || 'documento').replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'documento';
+export const safeName = s => String(s || 'documento').replace(/\.pdf$/i, '').replace(/[\u2012-\u2015]/g, '-').replace(/[\u2018\u2019]/g, "'").replace(/[\u201C\u201D]/g, '')
+  .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '_').replace(/\s+/g, ' ').trim() || 'documento';
 export function parseRanges(spec, max) { // "1-3, 5, 8-" -> [[0,1,2],[4],[7..max-1]]
   const out = [];
   for (const part of String(spec).split(/[,;]+/)) {

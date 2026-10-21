@@ -27,7 +27,7 @@ export function fontName(family = 'sans', bold = false, italic = false) {
 export const fontOf = name => metrics.get(name) || metrics.get('Helvetica');
 export function ascent(name) { const f = fontOf(name).embedder.font; return f.Ascender / 1000; }
 export function descent(name) { const f = fontOf(name).embedder.font; return -f.Descender / 1000; }
-export const measure = (name, s, size) => fontOf(name).widthOfTextAtSize(s, size);
+export const measure = (name, s, size) => fontOf(name).widthOfTextAtSize(cleanText(s).replace(/\n/g, ' '), size);
 
 const encOk = new Map();
 export function canEnc(ch) {
