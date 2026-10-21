@@ -15,7 +15,7 @@ export const drafts = { hf: undefined, wm: undefined };
 let drawer = null; // name of the open panel
 
 /* ------------------------------------------------------------ drawer */
-const TITLES = { search: 'Cerca e redigi', hf: 'Intestazione e piè di pagina', wm: 'Filigrana', props: 'Proprietà del documento', protect: 'Protezione', split: 'Dividi il documento' };
+const TITLES = { search: 'Find and redact', hf: 'Header and footer', wm: 'Watermark', props: 'Document properties', protect: 'Protection', split: 'Split the document' };
 export function openDrawer(name) {
   closeEditors();
   if (drawer === name) { closeDrawer(); return; }
@@ -39,29 +39,29 @@ export function renderDrawer() { if (drawer === 'split') splitSummary(); }
 /* ------------------------------------------------------------ search and redact */
 const PATTERNS = {
   email: ['Email', /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g],
-  phone: ['Telefono', /(?:\+39[\s.]?)?(?:0\d{1,3}|3\d{2})[\s./-]?\d{3,4}[\s.-]?\d{3,4}\b/g],
+  phone: ['Phone numbers', /(?:\+\d{1,3}[\s.-]?)?(?:\(\d{1,4}\)[\s.-]?|\b\d{2,4}[\s./-])\d{3,4}[\s.-]?\d{3,4}\b/g],
   iban: ['IBAN', /\b[A-Z]{2}\d{2}(?:\s?[A-Z0-9]{4}){3,7}(?:\s?[A-Z0-9]{1,3})?\b/g],
-  cf: ['Codice fiscale', /\b[A-Z]{6}\d{2}[A-EHLMPR-T]\d{2}[A-Z]\d{3}[A-Z]\b/gi],
-  piva: ['Partita IVA', /\b(?:IT\s?)?\d{11}\b/g],
-  date: ['Date', /\b\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})\b/g],
+  cf: ['Italian tax codes', /\b[A-Z]{6}\d{2}[A-EHLMPR-T]\d{2}[A-Z]\d{3}[A-Z]\b/gi],
+  piva: ['Italian VAT numbers', /\b(?:IT\s?)?\d{11}\b/g],
+  date: ['Dates', /\b\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})\b/g],
 };
 let hits = [], curHit = -1;
 function searchPanel(body) {
   body.innerHTML = `
-    <label class="stack">Testo da cercare<input type="search" id="sq" placeholder="Parola o frase" autocomplete="off"></label>
-    <label class="fld"><input type="checkbox" id="sCase"> Maiuscole e minuscole</label>
-    <div class="stack"><span class="lbl">Oppure cerca dati personali</span><div class="chips">${Object.entries(PATTERNS).map(([k, [l]]) => `<label class="chip-check"><input type="checkbox" value="${k}"> ${l}</label>`).join('')}</div></div>
-    <div class="row start"><button class="btn primary" type="button" id="sGo">Cerca</button><span class="hint" id="sCount"></span></div>
+    <label class="stack">Text to find<input type="search" id="sq" placeholder="Word or phrase" autocomplete="off"></label>
+    <label class="fld"><input type="checkbox" id="sCase"> Match case</label>
+    <div class="stack"><span class="lbl">Or find personal data</span><div class="chips">${Object.entries(PATTERNS).map(([k, [l]]) => `<label class="chip-check"><input type="checkbox" value="${k}"> ${l}</label>`).join('')}</div></div>
+    <div class="row start"><button class="btn primary" type="button" id="sGo">Find</button><span class="hint" id="sCount"></span></div>
     <ol class="results" id="sResults"></ol>
-    <div class="row start" id="sActions" hidden><button class="btn" type="button" id="sAll">Seleziona tutti</button><button class="btn danger" type="button" id="sRedact">Contrassegna per la redazione</button><button class="btn" type="button" id="sHl">Evidenzia</button></div>
-    <p class="note">La redazione elimina definitivamente testo, immagini e grafica sotto le aree contrassegnate quando salvi il PDF.${engine.engine.available || !engine.engine.error ? '' : ' <b>Il motore MuPDF non è disponibile: la redazione non funzionerà.</b>'}</p>`;
+    <div class="row start" id="sActions" hidden><button class="btn" type="button" id="sAll">Select all</button><button class="btn danger" type="button" id="sRedact">Mark for redaction</button><button class="btn" type="button" id="sHl">Highlight</button></div>
+    <p class="note">Redaction permanently removes the text, images and graphics under the marked areas when you save the PDF.${engine.engine.available || !engine.engine.error ? '' : ' <b>The MuPDF engine is not available: redaction will not work.</b>'}</p>`;
   const run = async () => {
     const q = $('#sq').value, cs = $('#sCase').checked, pats = $$('.chips input:checked').map(i => i.value);
-    if (!q.trim() && !pats.length) { $('#sCount').textContent = 'Scrivi un testo o scegli un tipo di dato.'; return; }
+    if (!q.trim() && !pats.length) { $('#sCount').textContent = 'Type some text or choose a kind of data.'; return; }
     $('#sCount').textContent = 'Ricerca…';
     const res = [];
     const rx = [];
-    if (q.trim()) rx.push(['testo', new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'), cs ? 'g' : 'gi')]);
+    if (q.trim()) rx.push(['text', new RegExp(q.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+'), cs ? 'g' : 'gi')]);
     for (const k of pats) rx.push([PATTERNS[k][0], new RegExp(PATTERNS[k][1].source, PATTERNS[k][1].flags)]);
     for (const p of S.pages) {
       const lines = await ensureText(p);
@@ -80,13 +80,13 @@ function searchPanel(body) {
       });
     }
     hits = res; curHit = -1;
-    $('#sCount').textContent = res.length ? `${res.length} ${res.length === 1 ? 'risultato' : 'risultati'}` : 'Nessun risultato';
+    $('#sCount').textContent = res.length ? `${res.length} ${res.length === 1 ? 'result' : 'results'}` : 'No results';
     $('#sActions').hidden = !res.length;
     const ol = $('#sResults'); ol.innerHTML = '';
     for (const h of res) {
       const li = document.createElement('li');
       const n = S.pages.findIndex(p => p.id === h.pageId) + 1;
-      li.innerHTML = `<input type="checkbox" checked aria-label="Includi"><button type="button" class="res"><span class="res-pg">p. ${n}</span><span class="res-tx">${esc(h.snippet).replace('\u0001', '<mark>').replace('\u0002', '</mark>')}</span></button>`;
+      li.innerHTML = `<input type="checkbox" checked aria-label="Include"><button type="button" class="res"><span class="res-pg">p. ${n}</span><span class="res-tx">${esc(h.snippet).replace('\u0001', '<mark>').replace('\u0002', '</mark>')}</span></button>`;
       li.querySelector('input').onchange = e => { h.on = e.target.checked; renderHits(); };
       li.querySelector('button').onclick = () => goHit(res.indexOf(h));
       ol.appendChild(li);
@@ -101,16 +101,16 @@ function searchPanel(body) {
     const chosen = hits.filter(h => h.on); if (!chosen.length) return;
     const snap = snapshot();
     const byPage = new Map();
-    for (const h of chosen) { if (!byPage.has(h.pageId)) byPage.set(h.pageId, []); byPage.get(h.pageId).push(inflate(h.box, 0.6)); }
-    for (const [pid, rects] of byPage) { const p = pageOf(pid); S.edits.push({ id: uid('e'), kind: 'redact', src: p.fileId, idx: p.idx, rects, fill: '#000000', label: 'ricerca' }); }
+    for (const h of chosen) { if (!byPage.has(h.pageId)) byPage.set(h.pageId, []); byPage.get(h.pageId).push(inflate(h.box, 1)); }
+    for (const [pid, rects] of byPage) { const p = pageOf(pid); S.edits.push({ id: uid('e'), kind: 'redact', src: p.fileId, idx: p.idx, rects, fill: '#000000', label: 'search' }); }
     pushUndo(snap); setDirty();
     refreshOverlays(); updateStatus();
-    toast(`${chosen.length} ${chosen.length === 1 ? 'risultato contrassegnato' : 'risultati contrassegnati'} per la redazione.`);
+    toast(`${chosen.length} ${chosen.length === 1 ? 'result' : 'results'} marked for redaction.`);
   };
   $('#sHl').onclick = () => {
     const chosen = hits.filter(h => h.on); if (!chosen.length) return;
     commit(() => { for (const h of chosen) { const [x1, y1, x2, y2] = h.box; S.annots.push(newAnnot('highlight', h.pageId, { quads: [[x1, y2, x2, y2, x1, y1, x2, y1]] })); } });
-    refreshOverlays(); toast(`${chosen.length} ${chosen.length === 1 ? 'evidenziazione aggiunta' : 'evidenziazioni aggiunte'}.`);
+    refreshOverlays(); toast(`${chosen.length} ${chosen.length === 1 ? 'highlight' : 'highlights'} added.`);
   };
   setTimeout(() => $('#sq').focus(), 0);
 }
@@ -136,32 +136,32 @@ export function renderHits() {
 }
 
 /* ------------------------------------------------------------ header and footer */
-const HF_DEFAULT = { slots: { tl: '', tc: '', tr: '', bl: '', bc: 'Pagina {pagina} di {totale}', br: '' }, size: 9, color: '#333333', margin: 28.35, startNumber: 1, range: 'all', bates: { prefix: 'DOC', start: 1, digits: 6, suffix: '' } };
-const SLOT_LABEL = { tl: 'Alto a sinistra', tc: 'Alto al centro', tr: 'Alto a destra', bl: 'Basso a sinistra', bc: 'Basso al centro', br: 'Basso a destra' };
+const HF_DEFAULT = { slots: { tl: '', tc: '', tr: '', bl: '', bc: 'Page {page} of {total}', br: '' }, size: 9, color: '#333333', margin: 28.35, startNumber: 1, range: 'all', bates: { prefix: 'DOC', start: 1, digits: 6, suffix: '' } };
+const SLOT_LABEL = { tl: 'Top left', tc: 'Top centre', tr: 'Top right', bl: 'Bottom left', bc: 'Bottom centre', br: 'Bottom right' };
 function hfPanel(body) {
   const d = structuredClone(S.doc.hf || HF_DEFAULT);
   drafts.hf = d;
   body.innerHTML = `
     <div class="slots">${HF_SLOTS.map(k => `<label class="stack">${SLOT_LABEL[k]}<input type="text" data-slot="${k}" value="${esc(d.slots[k] || '')}"></label>`).join('')}</div>
-    <div class="stack"><span class="lbl">Inserisci nel campo attivo</span><div class="chips">${HF_TOKENS.map(([t, l]) => `<button type="button" class="chip" data-tok="${t}" title="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
+    <div class="stack"><span class="lbl">Insert into the active field</span><div class="chips">${HF_TOKENS.map(([t, l]) => `<button type="button" class="chip" data-tok="${t}" title="${esc(l)}">${esc(l)}</button>`).join('')}</div></div>
     <div class="grid2">
-      <label class="stack">Corpo (pt)<input type="number" id="hfSize" min="5" max="36" step="0.5" value="${d.size}"></label>
-      <label class="stack">Colore<input type="color" id="hfColor" value="${d.color}"></label>
-      <label class="stack">Margine (mm)<input type="number" id="hfMargin" min="2" max="60" step="1" value="${Math.round(d.margin * 25.4 / 72)}"></label>
-      <label class="stack">Primo numero<input type="number" id="hfStart" min="0" step="1" value="${d.startNumber}"></label>
+      <label class="stack">Size (pt)<input type="number" id="hfSize" min="5" max="36" step="0.5" value="${d.size}"></label>
+      <label class="stack">Colour<input type="color" id="hfColor" value="${d.color}"></label>
+      <label class="stack">Margin (mm)<input type="number" id="hfMargin" min="2" max="60" step="1" value="${Math.round(d.margin * 25.4 / 72)}"></label>
+      <label class="stack">First number<input type="number" id="hfStart" min="0" step="1" value="${d.startNumber}"></label>
     </div>
-    <label class="stack">Pagine<input type="text" id="hfRange" placeholder="tutte, oppure 2-10" value="${d.range === 'all' ? '' : esc(d.range)}"></label>
-    <details ${d.slots && Object.values(d.slots).some(v => /\{bates\}/.test(v)) ? 'open' : ''}><summary>Numerazione Bates</summary>
+    <label class="stack">Pages<input type="text" id="hfRange" placeholder="all, or 2-10" value="${d.range === 'all' ? '' : esc(d.range)}"></label>
+    <details ${d.slots && Object.values(d.slots).some(v => /\{bates\}/.test(v)) ? 'open' : ''}><summary>Bates numbering</summary>
       <div class="grid2">
-        <label class="stack">Prefisso<input type="text" id="bPrefix" value="${esc(d.bates.prefix)}"></label>
-        <label class="stack">Suffisso<input type="text" id="bSuffix" value="${esc(d.bates.suffix)}"></label>
-        <label class="stack">Numero iniziale<input type="number" id="bStart" min="0" value="${d.bates.start}"></label>
-        <label class="stack">Cifre<input type="number" id="bDigits" min="1" max="12" value="${d.bates.digits}"></label>
+        <label class="stack">Prefix<input type="text" id="bPrefix" value="${esc(d.bates.prefix)}"></label>
+        <label class="stack">Suffix<input type="text" id="bSuffix" value="${esc(d.bates.suffix)}"></label>
+        <label class="stack">Start number<input type="number" id="bStart" min="0" value="${d.bates.start}"></label>
+        <label class="stack">Digits<input type="number" id="bDigits" min="1" max="12" value="${d.bates.digits}"></label>
       </div>
-      <p class="note">Inserisci «numero Bates» in uno dei campi: esempio ${esc(d.bates.prefix)}${'0'.repeat(Math.max(0, d.bates.digits - 1))}1.</p>
+      <p class="note">Insert "Bates number" into one of the fields, for example ${esc(d.bates.prefix)}${'0'.repeat(Math.max(0, d.bates.digits - 1))}1.</p>
     </details>
-    <div class="row start"><button class="btn primary" type="button" id="hfApply">Applica</button>${S.doc.hf ? '<button class="btn danger-link ghost" type="button" id="hfRemove">Rimuovi</button>' : ''}</div>
-    <p class="note">Il testo viene scritto nel contenuto delle pagine al salvataggio. L'anteprima è sulla pagina.</p>`;
+    <div class="row start"><button class="btn primary" type="button" id="hfApply">Apply</button>${S.doc.hf ? '<button class="btn danger-link ghost" type="button" id="hfRemove">Remove</button>' : ''}</div>
+    <p class="note">The text is written into the page content when you save. The preview is on the pages.</p>`;
   let active = body.querySelector('[data-slot="bc"]');
   const sync = () => {
     $$('[data-slot]', body).forEach(i => { d.slots[i.dataset.slot] = i.value; });
@@ -177,27 +177,27 @@ function hfPanel(body) {
     const i = active, t = b.dataset.tok, s = i.selectionStart ?? i.value.length;
     i.value = i.value.slice(0, s) + t + i.value.slice(i.selectionEnd ?? s); i.focus(); i.setSelectionRange(s + t.length, s + t.length); sync();
   }));
-  $('#hfApply').onclick = () => { sync(); const v = structuredClone(d); commit(() => { S.doc.hf = Object.values(v.slots).some(x => x.trim()) ? v : null; }); closeDrawer(); toast(S.doc.hf ? 'Intestazione e piè di pagina applicati.' : 'Intestazione e piè di pagina rimossi.'); };
-  $('#hfRemove')?.addEventListener('click', () => { commit(() => { S.doc.hf = null; }); closeDrawer(); toast('Intestazione e piè di pagina rimossi.'); });
+  $('#hfApply').onclick = () => { sync(); const v = structuredClone(d); commit(() => { S.doc.hf = Object.values(v.slots).some(x => x.trim()) ? v : null; }); closeDrawer(); toast(S.doc.hf ? 'Header and footer applied.' : 'Header and footer removed.'); };
+  $('#hfRemove')?.addEventListener('click', () => { commit(() => { S.doc.hf = null; }); closeDrawer(); toast('Header and footer removed.'); });
 }
 
 /* ------------------------------------------------------------ watermark */
-const WM_DEFAULT = { text: 'BOZZA', size: 72, color: '#d92d20', opacity: 0.2, angle: 45, behind: false, range: 'all' };
+const WM_DEFAULT = { text: 'DRAFT', size: 72, color: '#d92d20', opacity: 0.2, angle: 45, behind: false, range: 'all' };
 function wmPanel(body) {
   const d = structuredClone(S.doc.wm || WM_DEFAULT);
   drafts.wm = d;
   body.innerHTML = `
-    <label class="stack">Testo<input type="text" id="wmText" value="${esc(d.text)}"></label>
+    <label class="stack">Text<input type="text" id="wmText" value="${esc(d.text)}"></label>
     <div class="grid2">
-      <label class="stack">Corpo (pt)<input type="number" id="wmSize" min="8" max="300" value="${d.size}"></label>
-      <label class="stack">Colore<input type="color" id="wmColor" value="${d.color}"></label>
-      <label class="stack">Rotazione<select id="wmAngle"><option value="0">Orizzontale</option><option value="45">Diagonale ↗</option><option value="-45">Diagonale ↘</option><option value="90">Verticale</option></select></label>
-      <label class="stack">Livello<select id="wmLayer"><option value="0">Sopra il contenuto</option><option value="1">Dietro il contenuto</option></select></label>
+      <label class="stack">Size (pt)<input type="number" id="wmSize" min="8" max="300" value="${d.size}"></label>
+      <label class="stack">Colour<input type="color" id="wmColor" value="${d.color}"></label>
+      <label class="stack">Rotation<select id="wmAngle"><option value="0">Horizontal</option><option value="45">Diagonal ↗</option><option value="-45">Diagonal ↘</option><option value="90">Vertical</option></select></label>
+      <label class="stack">Layer<select id="wmLayer"><option value="0">Over the content</option><option value="1">Behind the content</option></select></label>
     </div>
-    <label class="stack">Opacità <output id="wmOpOut">${Math.round(d.opacity * 100)}%</output><input type="range" id="wmOp" min="5" max="100" step="5" value="${Math.round(d.opacity * 100)}"></label>
-    <label class="stack">Pagine<input type="text" id="wmRange" placeholder="tutte, oppure 1-3" value="${d.range === 'all' ? '' : esc(d.range)}"></label>
-    <div class="row start"><button class="btn primary" type="button" id="wmApply">Applica</button>${S.doc.wm ? '<button class="btn danger-link ghost" type="button" id="wmRemove">Rimuovi</button>' : ''}</div>
-    <p class="note">«Dietro il contenuto» non si vede sulle pagine con uno sfondo pieno (per esempio le scansioni).</p>`;
+    <label class="stack">Opacity <output id="wmOpOut">${Math.round(d.opacity * 100)}%</output><input type="range" id="wmOp" min="5" max="100" step="5" value="${Math.round(d.opacity * 100)}"></label>
+    <label class="stack">Pages<input type="text" id="wmRange" placeholder="all, or 1-3" value="${d.range === 'all' ? '' : esc(d.range)}"></label>
+    <div class="row start"><button class="btn primary" type="button" id="wmApply">Apply</button>${S.doc.wm ? '<button class="btn danger-link ghost" type="button" id="wmRemove">Remove</button>' : ''}</div>
+    <p class="note">"Behind the content" is not visible on pages with a solid background, such as scans.</p>`;
   $('#wmAngle').value = String(d.angle); $('#wmLayer').value = d.behind ? '1' : '0';
   const sync = () => {
     d.text = $('#wmText').value; d.size = clamp(+$('#wmSize').value || 72, 8, 300); d.color = $('#wmColor').value; d.angle = +$('#wmAngle').value;
@@ -205,8 +205,8 @@ function wmPanel(body) {
     refreshOverlays();
   };
   body.addEventListener('input', sync); body.addEventListener('change', sync);
-  $('#wmApply').onclick = () => { sync(); const v = structuredClone(d); commit(() => { S.doc.wm = v.text.trim() ? v : null; }); closeDrawer(); toast(S.doc.wm ? 'Filigrana applicata.' : 'Filigrana rimossa.'); };
-  $('#wmRemove')?.addEventListener('click', () => { commit(() => { S.doc.wm = null; }); closeDrawer(); toast('Filigrana rimossa.'); });
+  $('#wmApply').onclick = () => { sync(); const v = structuredClone(d); commit(() => { S.doc.wm = v.text.trim() ? v : null; }); closeDrawer(); toast(S.doc.wm ? 'Watermark applied.' : 'Watermark removed.'); };
+  $('#wmRemove')?.addEventListener('click', () => { commit(() => { S.doc.wm = null; }); closeDrawer(); toast('Watermark removed.'); });
 }
 
 /* ------------------------------------------------------------ properties */
@@ -216,15 +216,15 @@ function propsPanel(body) {
   const m = S.doc.meta || { title: get('getTitle'), author: get('getAuthor'), subject: get('getSubject'), keywords: get('getKeywords') };
   const files = [...new Set(S.pages.map(p => S.files.get(p.fileId).name))];
   body.innerHTML = `
-    <label class="stack">Titolo<input type="text" id="mTitle" value="${esc(m.title)}"></label>
-    <label class="stack">Autore<input type="text" id="mAuthor" value="${esc(m.author)}"></label>
-    <label class="stack">Oggetto<input type="text" id="mSubject" value="${esc(m.subject)}"></label>
-    <label class="stack">Parole chiave<input type="text" id="mKeywords" placeholder="separate da virgole" value="${esc(Array.isArray(m.keywords) ? m.keywords.join(', ') : m.keywords)}"></label>
-    <dl class="facts"><dt>Pagine</dt><dd>${S.pages.length}</dd><dt>File di origine</dt><dd>${files.map(esc).join('<br>')}</dd><dt>Commenti</dt><dd>${S.annots.length}</dd><dt>Modifiche al contenuto</dt><dd>${S.edits.filter(e => e.kind !== 'redact').length}</dd><dt>Segnalibri</dt><dd>${S.bookmarks.length}</dd></dl>
-    <div class="row start"><button class="btn primary" type="button" id="mApply">Applica</button></div>`;
+    <label class="stack">Title<input type="text" id="mTitle" value="${esc(m.title)}"></label>
+    <label class="stack">Author<input type="text" id="mAuthor" value="${esc(m.author)}"></label>
+    <label class="stack">Subject<input type="text" id="mSubject" value="${esc(m.subject)}"></label>
+    <label class="stack">Keywords<input type="text" id="mKeywords" placeholder="separated by commas" value="${esc(Array.isArray(m.keywords) ? m.keywords.join(', ') : m.keywords)}"></label>
+    <dl class="facts"><dt>Pages</dt><dd>${S.pages.length}</dd><dt>Source files</dt><dd>${files.map(esc).join('<br>')}</dd><dt>Comments</dt><dd>${S.annots.length}</dd><dt>Content edits</dt><dd>${S.edits.filter(e => e.kind !== 'redact').length}</dd><dt>Bookmarks</dt><dd>${S.bookmarks.length}</dd></dl>
+    <div class="row start"><button class="btn primary" type="button" id="mApply">Apply</button></div>`;
   $('#mApply').onclick = () => {
     const v = { title: $('#mTitle').value.trim(), author: $('#mAuthor').value.trim(), subject: $('#mSubject').value.trim(), keywords: $('#mKeywords').value.trim() };
-    commit(() => { S.doc.meta = v; }); closeDrawer(); toast('Proprietà aggiornate.');
+    commit(() => { S.doc.meta = v; }); closeDrawer(); toast('Properties updated.');
   };
 }
 
@@ -233,49 +233,49 @@ function protectPanel(body) {
   const p = S.doc.protect || { user: '', owner: '', allow: { print: true, copy: false, edit: false, comment: true } };
   const off = !engine.engine.available && engine.engine.error;
   body.innerHTML = `
-    ${off ? '<p class="err">Il motore MuPDF non è disponibile: la protezione non può essere applicata.</p>' : ''}
-    <fieldset><legend><label><input type="checkbox" id="pUserOn" ${p.user ? 'checked' : ''}> Richiedi una password per aprire</label></legend>
-      <label class="stack">Password di apertura<input type="password" id="pUser" autocomplete="new-password" value="${esc(p.user)}"></label>
-      <label class="stack">Ripeti la password<input type="password" id="pUser2" autocomplete="new-password" value="${esc(p.user)}"></label></fieldset>
-    <fieldset><legend><label><input type="checkbox" id="pOwnerOn" ${p.owner ? 'checked' : ''}> Limita stampa e modifiche</label></legend>
-      <label class="stack">Password dei permessi<input type="password" id="pOwner" autocomplete="new-password" value="${esc(p.owner)}"></label>
-      <label class="stack">Ripeti la password<input type="password" id="pOwner2" autocomplete="new-password" value="${esc(p.owner)}"></label>
-      <span class="lbl">Senza la password dei permessi è consentito:</span>
-      <label class="fld"><input type="checkbox" id="aPrint" ${p.allow.print ? 'checked' : ''}> Stampare</label>
-      <label class="fld"><input type="checkbox" id="aCopy" ${p.allow.copy ? 'checked' : ''}> Copiare testo e immagini</label>
-      <label class="fld"><input type="checkbox" id="aEdit" ${p.allow.edit ? 'checked' : ''}> Modificare e riorganizzare le pagine</label>
-      <label class="fld"><input type="checkbox" id="aComment" ${p.allow.comment ? 'checked' : ''}> Commentare e compilare moduli</label></fieldset>
+    ${off ? '<p class="err">The MuPDF engine is not available: protection cannot be applied.</p>' : ''}
+    <fieldset><legend><label><input type="checkbox" id="pUserOn" ${p.user ? 'checked' : ''}> Require a password to open</label></legend>
+      <label class="stack">Open password<input type="password" id="pUser" autocomplete="new-password" value="${esc(p.user)}"></label>
+      <label class="stack">Repeat the password<input type="password" id="pUser2" autocomplete="new-password" value="${esc(p.user)}"></label></fieldset>
+    <fieldset><legend><label><input type="checkbox" id="pOwnerOn" ${p.owner ? 'checked' : ''}> Restrict printing and editing</label></legend>
+      <label class="stack">Permissions password<input type="password" id="pOwner" autocomplete="new-password" value="${esc(p.owner)}"></label>
+      <label class="stack">Repeat the password<input type="password" id="pOwner2" autocomplete="new-password" value="${esc(p.owner)}"></label>
+      <span class="lbl">Without the permissions password, people can:</span>
+      <label class="fld"><input type="checkbox" id="aPrint" ${p.allow.print ? 'checked' : ''}> Print</label>
+      <label class="fld"><input type="checkbox" id="aCopy" ${p.allow.copy ? 'checked' : ''}> Copy text and images</label>
+      <label class="fld"><input type="checkbox" id="aEdit" ${p.allow.edit ? 'checked' : ''}> Edit and reorganise pages</label>
+      <label class="fld"><input type="checkbox" id="aComment" ${p.allow.comment ? 'checked' : ''}> Comment and fill in forms</label></fieldset>
     <p class="err" id="pErr" hidden></p>
-    <div class="row start"><button class="btn primary" type="button" id="pApply" ${off ? 'disabled' : ''}>Applica al salvataggio</button>${S.doc.protect ? '<button class="btn ghost danger-link" type="button" id="pRemove">Rimuovi protezione</button>' : ''}</div>
-    <p class="note">Cifratura AES a 256 bit. Le password non possono contenere virgole. Conservale: senza la password di apertura il file non si apre.</p>`;
+    <div class="row start"><button class="btn primary" type="button" id="pApply" ${off ? 'disabled' : ''}>Apply on save</button>${S.doc.protect ? '<button class="btn ghost danger-link" type="button" id="pRemove">Remove protection</button>' : ''}</div>
+    <p class="note">256-bit AES encryption. Passwords cannot contain commas. Keep them safe: without the open password the file cannot be opened.</p>`;
   $('#pApply').onclick = () => {
     const err = m => { $('#pErr').textContent = m; $('#pErr').hidden = false; };
     const uOn = $('#pUserOn').checked, oOn = $('#pOwnerOn').checked;
     const u = uOn ? $('#pUser').value : '', o = oOn ? $('#pOwner').value : '';
-    if (!uOn && !oOn) { err('Scegli almeno una delle due protezioni.'); return; }
-    if (uOn && !u) { err('Scrivi la password di apertura.'); return; }
-    if (oOn && !o) { err('Scrivi la password dei permessi.'); return; }
-    if (uOn && u !== $('#pUser2').value) { err('Le due password di apertura non coincidono.'); return; }
-    if (oOn && o !== $('#pOwner2').value) { err('Le due password dei permessi non coincidono.'); return; }
-    if (/,/.test(u + o)) { err('Le password non possono contenere virgole.'); return; }
-    if (uOn && oOn && u === o) { err('Usa due password diverse: con la stessa password chi apre il file ha tutti i permessi.'); return; }
+    if (!uOn && !oOn) { err('Choose at least one of the two protections.'); return; }
+    if (uOn && !u) { err('Enter the open password.'); return; }
+    if (oOn && !o) { err('Enter the permissions password.'); return; }
+    if (uOn && u !== $('#pUser2').value) { err('The two open passwords do not match.'); return; }
+    if (oOn && o !== $('#pOwner2').value) { err('The two permissions passwords do not match.'); return; }
+    if (/,/.test(u + o)) { err('Passwords cannot contain commas.'); return; }
+    if (uOn && oOn && u === o) { err('Use two different passwords: with the same password, anyone who opens the file gets every permission.'); return; }
     const v = { user: u, owner: o, allow: { print: $('#aPrint').checked, copy: $('#aCopy').checked, edit: $('#aEdit').checked, comment: $('#aComment').checked } };
-    commit(() => { S.doc.protect = v; }); updateTitle(); closeDrawer(); toast('La protezione verrà applicata al salvataggio.');
+    commit(() => { S.doc.protect = v; }); updateTitle(); closeDrawer(); toast('Protection will be applied when you save.');
   };
-  $('#pRemove')?.addEventListener('click', () => { commit(() => { S.doc.protect = null; }); updateTitle(); closeDrawer(); toast('Protezione rimossa.'); });
+  $('#pRemove')?.addEventListener('click', () => { commit(() => { S.doc.protect = null; }); updateTitle(); closeDrawer(); toast('Protection removed.'); });
 }
 
 /* ------------------------------------------------------------ split */
 function splitPanel(body) {
   const tops = S.bookmarks.filter(b => b.level === 0 && b.pageId && pageOf(b.pageId));
   body.innerHTML = `
-    <label class="radio"><input type="radio" name="spm" value="every" checked> Ogni <input type="number" id="spN" min="1" value="1" class="w-num"> pagine</label>
-    <label class="radio"><input type="radio" name="spm" value="ranges"> Per intervalli</label>
-    <input type="text" id="spRanges" placeholder="Esempio: 1-3, 4, 5-">
-    <label class="radio"><input type="radio" name="spm" value="bm" ${tops.length ? '' : 'disabled'}> A ogni segnalibro principale${tops.length ? ` (${tops.length})` : ' (nessuno)'}</label>
+    <label class="radio"><input type="radio" name="spm" value="every" checked> Every <input type="number" id="spN" min="1" value="1" class="w-num"> pages</label>
+    <label class="radio"><input type="radio" name="spm" value="ranges"> By page ranges</label>
+    <input type="text" id="spRanges" placeholder="For example: 1-3, 4, 5-">
+    <label class="radio"><input type="radio" name="spm" value="bm" ${tops.length ? '' : 'disabled'}> At each top-level bookmark${tops.length ? ` (${tops.length})` : ' (none)'}</label>
     <p class="hint" id="spSum"></p>
-    <div class="row start"><button class="btn primary" type="button" id="spGo">Dividi e scarica</button></div>
-    <p class="note">Con più di un file ricevi un archivio .zip.</p>`;
+    <div class="row start"><button class="btn primary" type="button" id="spGo">Split and download</button></div>
+    <p class="note">When there is more than one file you get a .zip archive.</p>`;
   body.addEventListener('input', splitSummary); body.addEventListener('change', splitSummary);
   $('#spRanges').addEventListener('focus', () => { body.querySelector('[value="ranges"]').checked = true; splitSummary(); });
   $('#spGo').onclick = doSplit;
@@ -296,12 +296,12 @@ function splitSummary() {
   if (drawer !== 'split' || !$('#spSum')) return;
   const parts = splitParts();
   const label = list => { const a = S.pages.indexOf(list[0]) + 1, b = S.pages.indexOf(list[list.length - 1]) + 1; return a === b ? `${a}` : `${a}–${b}`; };
-  $('#spSum').textContent = !parts ? 'Intervalli non validi: usa numeri di pagina tra 1 e ' + S.pages.length + '.' : `${parts.length} ${parts.length === 1 ? 'file' : 'file'}: ${parts.slice(0, 12).map(label).join(', ')}${parts.length > 12 ? '…' : ''}`;
+  $('#spSum').textContent = !parts ? 'Invalid ranges: use page numbers from 1 to ' + S.pages.length + '.' : `${parts.length} ${parts.length === 1 ? 'file' : 'files'}: ${parts.slice(0, 12).map(label).join(', ')}${parts.length > 12 ? '…' : ''}`;
   $('#spGo').disabled = !parts || !parts.length;
 }
 async function doSplit() {
   const parts = splitParts(); if (!parts?.length) return;
-  const btn = $('#spGo'); btn.disabled = true; btn.textContent = 'Preparazione…';
+  const btn = $('#spGo'); btn.disabled = true; btn.textContent = 'Preparing…';
   try {
     const base = baseName(), files = [];
     for (const [k, list] of parts.entries()) {
@@ -310,9 +310,9 @@ async function doSplit() {
       files.push({ name: `${base}-${String(k + 1).padStart(String(parts.length).length, '0')}-p${a === b ? a : `${a}-${b}`}.pdf`, data: bytes });
     }
     if (files.length === 1) await offerFile(files[0].data, files[0].name);
-    else await offerFile(makeZip(files), `${base}-diviso.zip`, { type: 'application/zip' });
-  } catch (e) { toast(e.user ? e.message : 'Divisione non riuscita.', 'error'); console.error(e); }
-  finally { btn.disabled = false; btn.textContent = 'Dividi e scarica'; }
+    else await offerFile(makeZip(files), `${base}-split.zip`, { type: 'application/zip' });
+  } catch (e) { toast(e.user ? e.message : 'Splitting failed.', 'error'); console.error(e); }
+  finally { btn.disabled = false; btn.textContent = 'Split and download'; }
 }
 
 /* ------------------------------------------------------------ bookmarks */
@@ -326,7 +326,7 @@ export function setRailTab(tab) {
 export function renderBookmarks() {
   const ol = $('#bmList'); if (!ol) return;
   ol.innerHTML = '';
-  if (!S.bookmarks.length) { ol.innerHTML = '<li class="empty">Nessun segnalibro. Vai su una pagina e premi «Aggiungi».</li>'; }
+  if (!S.bookmarks.length) { ol.innerHTML = '<li class="empty">No bookmarks. Go to a page and press Add.</li>'; }
   for (const b of S.bookmarks) {
     const li = document.createElement('li'); li.className = 'bm' + (b.id === selBm ? ' sel' : ''); li.style.paddingLeft = 8 + b.level * 14 + 'px';
     const n = b.pageId ? S.pages.findIndex(p => p.id === b.pageId) + 1 : 0;
@@ -339,7 +339,7 @@ export function renderBookmarks() {
   $$('#bmTools [data-need]').forEach(btn => { btn.disabled = !has; });
 }
 function renameBm(b, li) {
-  const inp = document.createElement('input'); inp.type = 'text'; inp.value = b.title; inp.className = 'bm-edit'; inp.setAttribute('aria-label', 'Titolo del segnalibro');
+  const inp = document.createElement('input'); inp.type = 'text'; inp.value = b.title; inp.className = 'bm-edit'; inp.setAttribute('aria-label', 'Bookmark title');
   li.querySelector('.bm-t').replaceWith(inp); inp.focus(); inp.select();
   let done = false;
   const fin = ok => { if (done) return; done = true; const v = inp.value.trim(); if (ok && v && v !== b.title) commit(() => { b.title = v; }); renderBookmarks(); };
@@ -350,7 +350,7 @@ export function bookmarkAction(act) {
   const i = S.bookmarks.findIndex(b => b.id === selBm), b = S.bookmarks[i];
   if (act === 'add') {
     const p = pageOf(S.cur); if (!p) return;
-    const n = S.pages.indexOf(p) + 1, nb = { id: uid('b'), title: `Pagina ${n}`, pageId: p.id, level: b ? b.level : 0 };
+    const n = S.pages.indexOf(p) + 1, nb = { id: uid('b'), title: `Page ${n}`, pageId: p.id, level: b ? b.level : 0 };
     commit(() => { S.bookmarks.splice(i >= 0 ? i + 1 : S.bookmarks.length, 0, nb); });
     selBm = nb.id; renderBookmarks();
     const li = [...$('#bmList').children][S.bookmarks.indexOf(nb)]; if (li) renameBm(nb, li);
@@ -389,15 +389,15 @@ export function movePages(dir) {
 }
 export function deletePages() {
   const t = targetPages(); if (!t.length) return;
-  if (t.length >= S.pages.length) { toast('Il documento deve avere almeno una pagina.', 'error'); return; }
+  if (t.length >= S.pages.length) { toast('The document must keep at least one page.', 'error'); return; }
   const ids = new Set(t.map(p => p.id));
   commit(() => { S.pages = S.pages.filter(p => !ids.has(p.id)); });
   S.selPages.clear(); if (ids.has(S.cur)) S.cur = null; select(null); rebuildViews();
-  toast(t.length === 1 ? 'Pagina eliminata. Ctrl+Z per annullare.' : `${t.length} pagine eliminate. Ctrl+Z per annullare.`);
+  toast(t.length === 1 ? 'Page deleted. Press Ctrl+Z to undo.' : `${t.length} pages deleted. Press Ctrl+Z to undo.`);
 }
 export function uncropPages() {
-  const t = targetPages().filter(p => p.crop); if (!t.length) { toast('Le pagine selezionate non sono ritagliate.'); return; }
-  commit(() => t.forEach(p => { p.crop = null; })); refreshOverlays(); rebuildThumbs(); updateStatus(); toast('Ritaglio rimosso.');
+  const t = targetPages().filter(p => p.crop); if (!t.length) { toast('The selected pages are not cropped.'); return; }
+  commit(() => t.forEach(p => { p.crop = null; })); refreshOverlays(); rebuildThumbs(); updateStatus(); toast('Crop removed.');
 }
 export async function extractPages() {
   const t = targetPages(); if (!t.length) return;
@@ -405,8 +405,8 @@ export async function extractPages() {
   try {
     const { bytes } = await buildPdf(t.map(p => p.id), { forSave: true });
     const nums = t.map(p => S.pages.indexOf(p) + 1);
-    await offerFile(bytes, `${baseName()}-pagine-${compactRanges(nums)}.pdf`);
-  } catch (e) { toast(e.user ? e.message : 'Estrazione non riuscita.', 'error'); console.error(e); }
+    await offerFile(bytes, `${baseName()}-pages-${compactRanges(nums)}.pdf`);
+  } catch (e) { toast(e.user ? e.message : 'Extracting failed.', 'error'); console.error(e); }
 }
 function compactRanges(n) { const out = []; for (let i = 0; i < n.length; i++) { let j = i; while (j + 1 < n.length && n[j + 1] === n[j] + 1) j++; out.push(j > i ? `${n[i]}-${n[j]}` : `${n[i]}`); i = j; } return out.join('_'); }
 

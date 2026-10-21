@@ -1,6 +1,6 @@
 # Publishes the exact npm packages used by the build to the `dev-deps` branch, so a development
 # environment without npm access can use the same files. Run it manually or when dependencies change.
-name: Snapshot dipendenze
+name: Dependency snapshot
 
 on:
   workflow_dispatch:
@@ -19,10 +19,10 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 22
-      - name: Installa
+      - name: Install
         run: |
           if [ -f package-lock.json ]; then npm ci --ignore-scripts; else npm install --ignore-scripts --no-audit --no-fund; fi
-      - name: Prepara il pacchetto
+      - name: Pack the packages
         run: |
           mkdir -p /tmp/snap/packages
           cp package-lock.json /tmp/snap/
@@ -33,11 +33,11 @@ jobs:
           v=$(node -p "require('./node_modules/esbuild/package.json').version"); (cd /tmp/snap/packages && npm pack "@esbuild/linux-x64@$v" --silent)
           ls -la /tmp/snap/packages
           npm ls --depth=0 > /tmp/snap/versions.txt || true
-      - name: Pubblica sul ramo dev-deps
+      - name: Publish to the dev-deps branch
         run: |
           cd /tmp/snap
           git init -q -b dev-deps
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A && git commit -qm "Snapshot dipendenze ($GITHUB_SHA)"
+          git add -A && git commit -qm "Dependency snapshot ($GITHUB_SHA)"
           git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" dev-deps

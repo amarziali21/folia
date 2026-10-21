@@ -67,35 +67,35 @@ const icon = name => `<svg viewBox="0 0 20 20" aria-hidden="true">${ICONS[name] 
 // tools (t) are modes of the pointer; actions (a) run once. "label" items show their text next to the icon.
 const MODES = {
   comment: [
-    { t: 'select', i: 'select', n: 'Seleziona e sposta', k: 'V' }, '|',
-    { t: 'text', i: 'text', n: 'Casella di testo', k: 'T' }, { t: 'highlight', i: 'highlight', n: 'Evidenzia testo', k: 'H' },
-    { t: 'underline', i: 'underline', n: 'Sottolinea testo', k: 'U' }, { t: 'strike', i: 'strike', n: 'Barra testo', k: 'K' },
-    { t: 'ink', i: 'ink', n: 'Penna a mano libera', k: 'P' }, { t: 'note', i: 'note', n: 'Nota', k: 'N' }, '|',
-    { t: 'rect', i: 'rect', n: 'Rettangolo', k: 'R' }, { t: 'ellipse', i: 'ellipse', n: 'Ellisse', k: 'O' }, { t: 'line', i: 'line', n: 'Linea', k: 'L' }, { t: 'arrow', i: 'arrow', n: 'Freccia', k: 'A' }, '|',
-    { t: 'image', i: 'image', n: 'Immagine o timbro', k: 'I' }, { t: 'sign', i: 'sign', n: 'Firma disegnata', k: 'S' },
+    { t: 'select', i: 'select', n: 'Select and move', k: 'V' }, '|',
+    { t: 'text', i: 'text', n: 'Text box', k: 'T' }, { t: 'highlight', i: 'highlight', n: 'Highlight text', k: 'H' },
+    { t: 'underline', i: 'underline', n: 'Underline text', k: 'U' }, { t: 'strike', i: 'strike', n: 'Strike through text', k: 'K' },
+    { t: 'ink', i: 'ink', n: 'Freehand pen', k: 'P' }, { t: 'note', i: 'note', n: 'Note', k: 'N' }, '|',
+    { t: 'rect', i: 'rect', n: 'Rectangle', k: 'R' }, { t: 'ellipse', i: 'ellipse', n: 'Ellipse', k: 'O' }, { t: 'line', i: 'line', n: 'Line', k: 'L' }, { t: 'arrow', i: 'arrow', n: 'Arrow', k: 'A' }, '|',
+    { t: 'image', i: 'image', n: 'Image or stamp', k: 'I' }, { t: 'sign', i: 'sign', n: 'Drawn signature', k: 'S' },
   ],
   edit: [
-    { t: 'edittext', i: 'edittext', n: 'Modifica testo', k: 'E', label: true }, { t: 'editimage', i: 'editimage', n: 'Modifica immagini', k: 'G', label: true },
-    { a: 'addimage', i: 'addimage', n: 'Aggiungi immagine' }, '|',
-    { t: 'redactarea', i: 'redactarea', n: 'Redigi un\'area', k: 'X', label: true }, { t: 'redacttext', i: 'redacttext', n: 'Redigi testo', k: 'W' },
-    { a: 'searchred', i: 'searchred', n: 'Cerca e redigi' }, { a: 'redprev', i: 'eye', n: 'Mostra le redazioni come saranno', toggle: () => S.showRedactPreview },
+    { t: 'edittext', i: 'edittext', n: 'Edit text', k: 'E', label: true }, { t: 'editimage', i: 'editimage', n: 'Edit images', k: 'G', label: true },
+    { a: 'addimage', i: 'addimage', n: 'Add image' }, '|',
+    { t: 'redactarea', i: 'redactarea', n: 'Redact an area', k: 'X', label: true }, { t: 'redacttext', i: 'redacttext', n: 'Redact text', k: 'W' },
+    { a: 'searchred', i: 'searchred', n: 'Find and redact' }, { a: 'redprev', i: 'eye', n: 'Show redactions as they will look', toggle: () => S.showRedactPreview },
   ],
   pages: [
-    { t: 'select', i: 'select', n: 'Seleziona', k: 'V' }, '|',
-    { a: 'rotl', i: 'rotl', n: 'Ruota a sinistra' }, { a: 'rotr', i: 'rotr', n: 'Ruota a destra' }, { a: 'up', i: 'up', n: 'Sposta prima' }, { a: 'down', i: 'down', n: 'Sposta dopo' },
-    { a: 'del', i: 'trash', n: 'Elimina pagine' }, '|',
-    { a: 'blank', i: 'blank', n: 'Inserisci pagina vuota' }, { a: 'insert', i: 'insert', n: 'Inserisci PDF dopo la pagina corrente' },
-    { a: 'extract', i: 'extract', n: 'Estrai le pagine in un nuovo PDF' }, { a: 'split', i: 'split', n: 'Dividi il documento', label: true }, '|',
-    { t: 'crop', i: 'crop', n: 'Ritaglia pagine', k: 'C', label: true }, { a: 'uncrop', i: 'uncrop', n: 'Rimuovi ritaglio' },
+    { t: 'select', i: 'select', n: 'Select', k: 'V' }, '|',
+    { a: 'rotl', i: 'rotl', n: 'Rotate left' }, { a: 'rotr', i: 'rotr', n: 'Rotate right' }, { a: 'up', i: 'up', n: 'Move earlier' }, { a: 'down', i: 'down', n: 'Move later' },
+    { a: 'del', i: 'trash', n: 'Delete pages' }, '|',
+    { a: 'blank', i: 'blank', n: 'Insert blank page' }, { a: 'insert', i: 'insert', n: 'Insert a PDF after the current page' },
+    { a: 'extract', i: 'extract', n: 'Extract pages to a new PDF' }, { a: 'split', i: 'split', n: 'Split the document', label: true }, '|',
+    { t: 'crop', i: 'crop', n: 'Crop pages', k: 'C', label: true }, { a: 'uncrop', i: 'uncrop', n: 'Remove crop' },
   ],
   doc: [
-    { t: 'select', i: 'select', n: 'Seleziona', k: 'V' }, '|',
-    { a: 'hf', i: 'header', n: 'Intestazione e piè di pagina', label: true }, { a: 'wm', i: 'watermark', n: 'Filigrana', label: true },
-    { t: 'link', i: 'link', n: 'Collegamenti', k: 'J', label: true }, { a: 'bookmarks', i: 'bookmark', n: 'Segnalibri', label: true }, '|',
-    { a: 'props', i: 'info', n: 'Proprietà', label: true }, { a: 'protect', i: 'lock', n: 'Protezione', label: true },
+    { t: 'select', i: 'select', n: 'Select', k: 'V' }, '|',
+    { a: 'hf', i: 'header', n: 'Header and footer', label: true }, { a: 'wm', i: 'watermark', n: 'Watermark', label: true },
+    { t: 'link', i: 'link', n: 'Links', k: 'J', label: true }, { a: 'bookmarks', i: 'bookmark', n: 'Bookmarks', label: true }, '|',
+    { a: 'props', i: 'info', n: 'Properties', label: true }, { a: 'protect', i: 'lock', n: 'Protection', label: true },
   ],
 };
-const SHORT = { hf: 'Intestazione', wm: 'Filigrana', link: 'Collegamenti', bookmarks: 'Segnalibri', props: 'Proprietà', protect: 'Protezione', split: 'Dividi', crop: 'Ritaglia', edittext: 'Testo', editimage: 'Immagini', redactarea: 'Redigi' };
+const SHORT = { hf: 'Header', wm: 'Watermark', link: 'Links', bookmarks: 'Bookmarks', props: 'Properties', protect: 'Protection', split: 'Split', crop: 'Crop', edittext: 'Text', editimage: 'Images', redactarea: 'Redact' };
 const DEFAULT_TOOL = { comment: 'select', edit: 'edittext', pages: 'select', doc: 'select' };
 
 function renderTools() {
@@ -227,7 +227,7 @@ function wire() {
 
 function fatal(msg) {
   const d = document.createElement('div'); d.className = 'fatal';
-  d.innerHTML = `<div class="panel"><h2>Margine non riesce a partire</h2><p></p></div>`;
+  d.innerHTML = `<div class="panel"><h2>Margine could not start</h2><p></p></div>`;
   d.querySelector('p').textContent = msg;
   document.body.appendChild(d);
 }
@@ -242,8 +242,8 @@ async function init() {
   engine.startEngine().then(() => updateStatus());
   const params = new URLSearchParams(location.search);
   const sample = await buildSample();
-  await openFiles([{ name: 'Esempio - Verbale di consegna.pdf', bytes: sample }], { replace: true, sample: true });
-  if (!params.has('quiet')) toast('Questo è un PDF di esempio. Apri il tuo file o trascinalo nella pagina.', 'info', 6500);
+  await openFiles([{ name: 'Sample - Delivery report.pdf', bytes: sample }], { replace: true, sample: true });
+  if (!params.has('quiet')) toast('This is a sample PDF. Open your own file or drop it onto the page.', 'info', 6500);
 }
 window.margine = { S, views, openFiles, undo, redo, setTool, setMode, select, rebuildViews, setZoom, commit, engine, closeEditors };
-init().catch(e => { console.error(e); fatal('Errore all\'avvio: ' + (e?.message || e)); });
+init().catch(e => { console.error(e); fatal('Start-up error: ' + (e?.message || e)); });

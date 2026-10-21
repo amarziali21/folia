@@ -17,7 +17,7 @@ import * as engine from './mupdf-client.js';
 
 /* ------------------------------------------------------------ tool catalogue */
 export const TOOL_TYPE = { text: 'text', highlight: 'highlight', underline: 'underline', strike: 'strike', ink: 'ink', note: 'note', rect: 'rect', ellipse: 'ellipse', line: 'line', arrow: 'line', image: 'stamp', sign: 'ink', link: 'link', redactarea: 'redact', redacttext: 'redact', edittext: 'ctext', editimage: 'cimage' };
-export const TYPE_LABEL = { text: 'Testo', highlight: 'Evidenziatore', underline: 'Sottolineatura', strike: 'Barrato', ink: 'Penna', note: 'Nota', rect: 'Rettangolo', ellipse: 'Ellisse', line: 'Linea', stamp: 'Immagine', link: 'Collegamento' };
+export const TYPE_LABEL = { text: 'Text box', highlight: 'Highlight', underline: 'Underline', strike: 'Strikethrough', ink: 'Pen', note: 'Note', rect: 'Rectangle', ellipse: 'Ellipse', line: 'Line', stamp: 'Image', link: 'Link' };
 const PALETTE = ['#1a1a1a', '#d92d20', '#2346c4', '#13804b', '#e8790c', '#7a3fd1', '#ffffff'];
 const HL_PALETTE = ['#ffd400', '#7ee081', '#7cc4ff', '#ff9ccc', '#ffb347'];
 const DEF_BASE = {
@@ -58,9 +58,36 @@ const pageIdOfEdit = e => S.pages.find(p => p.fileId === e.src && p.idx === e.id
 const viewsOfSource = (fileId, idx) => S.pages.filter(p => p.fileId === fileId && p.idx === idx).map(p => views.get(p.id)).filter(Boolean);
 
 /* ------------------------------------------------------------ page text (pdf.js) for highlighting, redaction and search */
+// Lines of text with the box of every character. MuPDF gives exact glyph boxes; pdf.js is the fallback
+// (it only knows where each run of text starts and ends, so character positions are estimated).
+async function mupdfLines(page) {
+  if (!(await engine.startEngine())) return null;
+  const blocks = await pageBlocks(page);
+  if (!blocks) return null;
+  const lines = [];
+  for (const b of blocks) for (const l of b.lines) {
+    if (!l.chars?.length || Math.abs(l.dir[1]) > 1e-3 || l.dir[0] <= 0) continue;
+    const chars = l.chars.map(ch => { const bb = bboxPts(ch.q); return { c: ch.c, x0: bb[0], x1: bb[2], y0: bb[1], y1: bb[3], base: ch.o[1], h: bb[3] - bb[1] }; });
+    lines.push({ base: l.origin[1], h: chars[0].h, chars });
+  }
+  return lines;
+}
 export function ensureText(page) {
   const m = meta(page); if (m.text) return m.text;
-  m.text = m.proxy.getTextContent().then(tc => {
+  m.text = mupdfLines(page).catch(() => null).then(ml => ml && ml.length ? finishLines(m, ml) : pdfjsLines(m));
+  return m.text;
+}
+function finishLines(m, lines) {
+  lines.sort((a, b) => b.base - a.base || a.chars[0].x0 - b.chars[0].x0);
+  for (const ln of lines) {
+    ln.chars.sort((p, q) => p.x0 - q.x0);
+    ln.str = ln.chars.map(c => c.c).join('');
+    ln.x0 = ln.chars[0].x0; ln.x1 = ln.chars[ln.chars.length - 1].x1; ln.y0 = Math.min(...ln.chars.map(c => c.y0)); ln.y1 = Math.max(...ln.chars.map(c => c.y1));
+  }
+  m.textReady = lines; return lines;
+}
+function pdfjsLines(m) {
+  return m.proxy.getTextContent().then(tc => {
     const chars = [];
     for (const it of tc.items) {
       if (!it.str) continue;
@@ -86,7 +113,6 @@ export function ensureText(page) {
     }
     m.textReady = lines; return lines;
   }).catch(() => (m.textReady = []));
-  return m.text;
 }
 function caret(lines, pt) {
   let best = -1, bd = Infinity;
@@ -159,7 +185,7 @@ function editFromBlock(p, block) {
   const lines = block.lines.filter(l => l.font && l.chars.length);
   if (!lines.length) return null;
   const dir = lines[0].dir;
-  if (!isAxis(dir) || lines.some(l => angleOf(l.dir) !== angleOf(dir))) return { error: 'Questo testo è inclinato: si può modificare solo testo orizzontale o verticale.' };
+  if (!isAxis(dir) || lines.some(l => angleOf(l.dir) !== angleOf(dir))) return { error: 'This text is slanted: only horizontal or vertical text can be edited.' };
   const rot = angleOf(dir), R = rotateM(rot), Ri = inv(R);
   const first = lines[0], size = first.size || 12;
   const local = (pt, o) => apply(Ri, pt[0] - o[0], pt[1] - o[1]);
@@ -182,7 +208,7 @@ function editFromBlock(p, block) {
     blockW = Math.max(blockW, off + x1);
   }
   const text = lines.map(l => l.text.replace(/\s+$/, '')).join('\n');
-  if (hasUnsupported(text)) return { error: 'Questo testo usa caratteri che i font standard non contengono (per esempio lettere non latine o simboli matematici): modificandolo andrebbero persi.' };
+  if (hasUnsupported(text)) return { error: 'This text uses characters the standard fonts do not contain (for example non-Latin letters or math symbols): editing it would lose them.' };
   const subW = Math.max(...text.split('\n').map(t => measure(font, t, size)));
   if (lines.length === 1) { // a single line may grow up to the opposite margin of the page
     const v = meta(p).view, xs = [[v[0], v[1]], [v[2], v[1]], [v[0], v[3]], [v[2], v[3]]].map(c => local(c, first.origin)[0]);
@@ -380,9 +406,9 @@ export async function onPointerDown(e, pv) {
       e.preventDefault(); // keep the focus in the editor that opens below
       const ed = hitTextEdit(p, pt);
       if (ed) { select(ed.id); drag = { kind: 'moveedit', pv, e: ed, start: pt, orig: structuredClone(ed), snap: snapshot(), moved: false, clickOpen: true }; break; }
-      if (!engine.engine.available && engine.engine.error) { toast('La modifica del testo richiede il motore MuPDF, che non si è caricato.', 'error'); return; }
+      if (!engine.engine.available && engine.engine.error) { toast('Text editing needs the MuPDF engine, which did not load.', 'error'); return; }
       const blocks = await pageBlocks(p);
-      if (blocks === null) { toast('Non riesco a leggere il testo di questa pagina.', 'error'); return; }
+      if (blocks === null) { toast('Could not read the text on this page.', 'error'); return; }
       const b = hitBlock(blocks, pt);
       if (b) {
         const key = b.bbox.map(v => Math.round(v)).join(',');
@@ -484,7 +510,7 @@ function onPointerUpBase(e) {
       else { renderOverlay(pv); if (d.clickOpen && d.e.kind === 'text') openContentEditor(d.e); }
       break;
     case 'moveimage': {
-      pv.ui.querySelector('.ghost')?.remove();
+      pv.ui.querySelector('.drag-ghost')?.remove();
       if (!d.moved) break;
       const nb = d.cur, cb = d.box0;
       const M = [(nb[2] - nb[0]) / (cb[2] - cb[0] || 1), 0, 0, (nb[3] - nb[1]) / (cb[3] - cb[1] || 1), 0, 0];
@@ -514,7 +540,7 @@ function onPointerUpBase(e) {
     }
     case 'link': {
       const r = normBox(...d.start, ...pt);
-      if ((r[2] - r[0]) * scale < 6 || (r[3] - r[1]) * scale < 6) { toast('Trascina un rettangolo sopra l\'area da rendere cliccabile.'); break; }
+      if ((r[2] - r[0]) * scale < 6 || (r[3] - r[1]) * scale < 6) { toast('Drag a rectangle over the area that should be clickable.'); break; }
       openLinkPopover(pv, r, null);
       break;
     }
@@ -570,7 +596,7 @@ function preview(pv, inner, multiply = false) {
 }
 function clearPreview(pv) { pv.ui.querySelector('.pv-prev')?.remove(); }
 function ghostBox(pv, box) {
-  let g = pv.ui.querySelector('.ghost'); if (!g) { g = document.createElement('div'); g.className = 'ghost'; pv.ui.appendChild(g); }
+  let g = pv.ui.querySelector('.drag-ghost'); if (!g) { g = document.createElement('div'); g.className = 'drag-ghost'; pv.ui.appendChild(g); }
   const sb = screenBox(pv, box); Object.assign(g.style, { left: sb[0] + 'px', top: sb[1] + 'px', width: sb[2] - sb[0] + 'px', height: sb[3] - sb[1] + 'px' });
 }
 function ghostText(pv, e) { renderOverlay(pv); preview(pv, contentTextSVG(e)); }
@@ -704,7 +730,7 @@ function onPointerUp(e) {
     drag = null;
     const { pv } = d;
     pv.el.onpointermove = pv.el.onpointerup = pv.el.onpointercancel = null;
-    pv.ui.querySelector('.ghost')?.remove(); clearPreview(pv); S.editing = null;
+    pv.ui.querySelector('.drag-ghost')?.remove(); clearPreview(pv); S.editing = null;
     if (!d.moved) { renderOverlay(pv); return; }
     const ed = d.finish ? d.finish() : d.e;
     pushUndo(d.snap); setDirty(); editChanged(ed); renderSelection(); renderProps();
@@ -752,7 +778,7 @@ export function openTextEditor(a, snap = snapshot(), isNew = false) {
   S.editing = a.id; S.sel = a.id; renderOverlay(pv); renderSelection(); renderProps();
   const f = frame(a), sc = pv.vp.scale, sb = screenBox(pv, a.rect), upright = f.r === totalRot(pv.page);
   const ta = document.createElement('textarea'); ta.className = 'ed-text'; ta.value = a.text || '';
-  ta.setAttribute('aria-label', 'Testo del commento'); ta.spellcheck = true;
+  ta.setAttribute('aria-label', 'Comment text'); ta.spellcheck = true;
   Object.assign(ta.style, { left: sb[0] + 'px', top: sb[1] + 'px', width: (upright ? f.lw * sc : sb[2] - sb[0]) + 'px', minHeight: (sb[3] - sb[1]) + 'px',
     font: `${a.size * sc}px/${LEADING} Helvetica, Arial, sans-serif`, color: a.color, padding: `${PAD * sc}px` });
   const grow = () => { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; };
@@ -763,7 +789,7 @@ export function openTextEditor(a, snap = snapshot(), isNew = false) {
     if (done) return; done = true;
     const t = ta.value.replace(/\s+$/, ''); ta.remove(); S.editing = null;
     if (!t.trim()) { S.annots = S.annots.filter(x => x.id !== a.id); S.sel = null; if (!isNew) { pushUndo(snap); setDirty(); } }
-    else if (t !== a.text || isNew) { a.text = t; a.dirty = true; fitText(a); pushUndo(snap); setDirty(); if (hasUnsupported(t)) toast('Alcuni caratteri non sono disponibili nel font standard e verranno sostituiti.'); }
+    else if (t !== a.text || isNew) { a.text = t; a.dirty = true; fitText(a); pushUndo(snap); setDirty(); if (hasUnsupported(t)) toast('Some characters are not available in the standard fonts and will be replaced.'); }
     renderOverlay(pv); renderSelection(); renderProps();
   };
   ta.addEventListener('blur', () => ta._commit());
@@ -776,7 +802,7 @@ export function openNoteEditor(a) {
   const sb = screenBox(pv, a.rect), pop = document.createElement('div'); pop.className = 'note-pop';
   const left = clamp(sb[2] + 8, 4, Math.max(4, pv.vp.width - 248)), top = clamp(sb[1], 4, Math.max(4, pv.vp.height - 150));
   Object.assign(pop.style, { left: left + 'px', top: top + 'px' });
-  pop.innerHTML = `<textarea id="noteText" aria-label="Testo della nota" placeholder="Scrivi la nota…"></textarea><div class="row"><button class="btn ghost danger-link" type="button" data-act="del">Elimina nota</button><button class="btn" type="button" data-act="ok">Fatto</button></div>`;
+  pop.innerHTML = `<textarea id="noteText" aria-label="Note text" placeholder="Write a note…"></textarea><div class="row"><button class="btn ghost danger-link" type="button" data-act="del">Delete note</button><button class="btn" type="button" data-act="ok">Done</button></div>`;
   const ta = pop.querySelector('textarea'); ta.value = a.contents || '';
   const snap = snapshot(); let done = false;
   pop._commit = () => {
@@ -810,7 +836,7 @@ export function openContentEditor(e, { isNew = false } = {}) {
   const ang = Math.atan2(tr[1] - tl[1], tr[0] - tl[0]);
   const fam = e.font.startsWith('Times') ? 'serif' : e.font.startsWith('Courier') ? 'mono' : 'sans';
   const ta = document.createElement('textarea'); ta.className = 'ed-content'; ta.value = e.text || '';
-  ta.setAttribute('aria-label', 'Testo della pagina'); ta.spellcheck = true; ta.wrap = 'soft';
+  ta.setAttribute('aria-label', 'Page text'); ta.spellcheck = true; ta.wrap = 'soft';
   const lines = Math.max(1, (e.text || '').split('\n').length);
   Object.assign(ta.style, {
     left: tl[0] + 'px', top: tl[1] + 'px', width: Math.max(40, e.width * sc + 4) + 'px', minHeight: (lines * e.leading * sc + 4) + 'px',
@@ -830,7 +856,7 @@ export function openContentEditor(e, { isNew = false } = {}) {
     else if (!isNew && !fromBlock && !t.trim()) { S.edits = S.edits.filter(x => x.id !== e.id); S.sel = null; pushUndo(snap); setDirty(); }
     else if (t !== e.text || isNew) {
       e.text = t; pushUndo(snap); setDirty();
-      if (hasUnsupported(t)) toast('Alcuni caratteri non sono disponibili nel font standard e verranno sostituiti.');
+      if (hasUnsupported(t)) toast('Some characters are not available in the standard fonts and will be replaced.');
     }
     editChanged(e); renderSelection(); renderProps();
   };
@@ -852,12 +878,12 @@ function popover(pv, anchorBox, html) {
 function openLinkPopover(pv, rect, existing) {
   const isUrl = existing ? !!existing.url : true;
   const pageNo = existing?.targetPage ? S.pages.findIndex(p => p.id === existing.targetPage) + 1 : '';
-  const pop = popover(pv, rect, `<div class="pop-title">${existing ? 'Modifica collegamento' : 'Nuovo collegamento'}</div>
-    <label class="radio"><input type="radio" name="lk" value="url" ${isUrl ? 'checked' : ''}> Indirizzo web</label>
+  const pop = popover(pv, rect, `<div class="pop-title">${existing ? 'Edit link' : 'New link'}</div>
+    <label class="radio"><input type="radio" name="lk" value="url" ${isUrl ? 'checked' : ''}> Web address</label>
     <input type="text" id="lkUrl" placeholder="https://…" value="${esc(existing?.url || '')}">
-    <label class="radio"><input type="radio" name="lk" value="page" ${!isUrl ? 'checked' : ''}> Pagina di questo documento</label>
+    <label class="radio"><input type="radio" name="lk" value="page" ${!isUrl ? 'checked' : ''}> Page in this document</label>
     <input type="number" id="lkPage" min="1" max="${S.pages.length}" placeholder="1–${S.pages.length}" value="${pageNo}">
-    <div class="row"><button class="btn" type="button" data-act="no">Annulla</button><button class="btn primary" type="button" data-act="ok">${existing ? 'Aggiorna' : 'Crea collegamento'}</button></div>`);
+    <div class="row"><button class="btn" type="button" data-act="no">Cancel</button><button class="btn primary" type="button" data-act="ok">${existing ? 'Update' : 'Create link'}</button></div>`);
   const url = pop.querySelector('#lkUrl'), pg = pop.querySelector('#lkPage');
   url.addEventListener('focus', () => { pop.querySelector('[value="url"]').checked = true; });
   pg.addEventListener('focus', () => { pop.querySelector('[value="page"]').checked = true; });
@@ -881,9 +907,9 @@ function openLinkPopover(pv, rect, existing) {
 }
 function openCropPopover(pv, rect) {
   const n = S.selPages.size;
-  const pop = popover(pv, rect, `<div class="pop-title">Ritaglia</div><p class="pop-note">Il ritaglio nasconde l'area esterna; il contenuto resta nel file.</p>
-    <div class="col"><button class="btn" type="button" data-act="this">Questa pagina</button>${n > 1 ? `<button class="btn" type="button" data-act="sel">Le ${n} pagine selezionate</button>` : ''}<button class="btn" type="button" data-act="all">Tutte le pagine</button><button class="btn ghost" type="button" data-act="no">Annulla</button></div>`);
-  const apply = list => { pop.remove(); commit(() => list.forEach(p => { p.crop = rect.map(v => Math.round(v * 100) / 100); })); for (const p of list) { const v = views.get(p.id); if (v) renderOverlay(v); } rebuildThumbs(); updateStatus(); toast(list.length === 1 ? 'Pagina ritagliata.' : `${list.length} pagine ritagliate.`); };
+  const pop = popover(pv, rect, `<div class="pop-title">Crop</div><p class="pop-note">Cropping hides the area outside; the content stays in the file.</p>
+    <div class="col"><button class="btn" type="button" data-act="this">This page</button>${n > 1 ? `<button class="btn" type="button" data-act="sel">The ${n} selected pages</button>` : ''}<button class="btn" type="button" data-act="all">All pages</button><button class="btn ghost" type="button" data-act="no">Cancel</button></div>`);
+  const apply = list => { pop.remove(); commit(() => list.forEach(p => { p.crop = rect.map(v => Math.round(v * 100) / 100); })); for (const p of list) { const v = views.get(p.id); if (v) renderOverlay(v); } rebuildThumbs(); updateStatus(); toast(list.length === 1 ? 'Page cropped.' : `${list.length} pages cropped.`); };
   pop.querySelector('[data-act="this"]').onclick = () => apply([pv.page]);
   pop.querySelector('[data-act="sel"]')?.addEventListener('click', () => apply(S.pages.filter(p => S.selPages.has(p.id))));
   pop.querySelector('[data-act="all"]').onclick = () => apply(S.pages.slice());
@@ -920,7 +946,7 @@ export async function addImageFile(file, asContent = false) {
       const p = pv.page, e = { id: uid('e'), kind: 'newimage', src: p.fileId, idx: p.idx, imageId: id, rect, rot: r, opacity: 1 };
       commit(() => S.edits.push(e)); S.sel = e.id; editChanged(e); setTool('editimage'); renderSelection(); renderProps();
     } else addAnnot(newAnnot('stamp', pv.page.id, { rect, rot: r, imageId: id, opacity: 1 }));
-  } catch (e) { toast('Immagine non leggibile. Usa PNG, JPEG, WebP o GIF.', 'error'); console.error(e); }
+  } catch (e) { toast('Could not read the image. Use PNG, JPEG, WebP or GIF.', 'error'); console.error(e); }
 }
 async function replaceImage(sel, file) {
   try {
@@ -932,10 +958,10 @@ async function replaceImage(sel, file) {
       if (ed.kind === 'newimage') ed.imageId = id; else { ed.replaceImageId = id; ed.deleted = false; }
     });
     S.sel = ed.id; editChanged(ed); renderSelection(); renderProps();
-  } catch (e) { toast('Immagine non leggibile. Usa PNG, JPEG, WebP o GIF.', 'error'); console.error(e); }
+  } catch (e) { toast('Could not read the image. Use PNG, JPEG, WebP or GIF.', 'error'); console.error(e); }
 }
 export function openSignaturePad() {
-  modal(`<h2 id="sigTitle">Disegna la firma</h2><p>Firma nel riquadro con il mouse, il dito o la penna. Viene inserita come tratto vettoriale, che puoi spostare e ridimensionare.</p><canvas class="pad" id="sigPad"></canvas><div class="row"><button class="btn ghost" type="button" data-act="clear">Cancella</button><button class="btn" type="button" data-act="cancel">Annulla</button><button class="btn primary" type="button" data-act="ok">Inserisci firma</button></div>`, (panel, done) => {
+  modal(`<h2 id="sigTitle">Draw your signature</h2><p>Sign in the box with the mouse, a finger or a pen. It is inserted as vector strokes that you can move and resize.</p><canvas class="pad" id="sigPad"></canvas><div class="row"><button class="btn ghost" type="button" data-act="clear">Clear</button><button class="btn" type="button" data-act="cancel">Cancel</button><button class="btn primary" type="button" data-act="ok">Insert signature</button></div>`, (panel, done) => {
     const c = panel.querySelector('#sigPad'), dpr = window.devicePixelRatio || 1, strokes = []; let cur = null;
     const draw = () => {
       const g = c.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, c.width, c.height);
@@ -952,28 +978,28 @@ export function openSignaturePad() {
     panel.querySelector('[data-act="clear"]').onclick = () => { strokes.length = 0; draw(); };
     panel.querySelector('[data-act="cancel"]').onclick = () => { done(null); setTool('select'); };
     panel.querySelector('[data-act="ok"]').onclick = () => {
-      if (!strokes.length) { toast('Disegna la firma prima di inserirla.', 'error'); return; }
+      if (!strokes.length) { toast('Draw the signature before inserting it.', 'error'); return; }
       const pv = curView(); done(true); setTool('select'); if (!pv) return;
       const b = bboxPts(strokes.flat()), bw = Math.max(1, b[2] - b[0]), bh = Math.max(1, b[3] - b[1]);
       const k = 150 * pv.vp.scale / Math.max(bw, bh * 2.2);
       const [cx, cy] = visibleCenter(pv);
       const pdfStrokes = strokes.map(s => mapPts(s, (x, y) => pv.vp.convertToPdfPoint(cx + (x - (b[0] + b[2]) / 2) * k, cy + (y - (b[1] + b[3]) / 2) * k)));
-      addAnnot(newAnnot('ink', pv.page.id, { strokes: pdfStrokes, width: 1.4, color: '#1b2a7a', opacity: 1, contents: 'Firma' }));
+      addAnnot(newAnnot('ink', pv.page.id, { strokes: pdfStrokes, width: 1.4, color: '#1b2a7a', opacity: 1, contents: 'Signature' }));
     };
   });
 }
 
 /* ------------------------------------------------------------ properties strip */
 let propSnap = null;
-const swatches = (pal, cur, id = 'pColor') => `<span class="sw" role="group" aria-label="Colore">${pal.map(c => `<button type="button" data-color="${c}" style="background:${c}" aria-label="Colore ${c}" aria-pressed="${cur === c}"></button>`).join('')}<input type="color" id="${id}" value="${cur || '#000000'}" aria-label="Altro colore"></span>`;
+const swatches = (pal, cur, id = 'pColor') => `<span class="sw" role="group" aria-label="Colour">${pal.map(c => `<button type="button" data-color="${c}" style="background:${c}" aria-label="Colour ${c}" aria-pressed="${cur === c}"></button>`).join('')}<input type="color" id="${id}" value="${cur || '#000000'}" aria-label="Custom colour"></span>`;
 const HINTS = {
-  select: 'Fai clic su un commento per modificarlo. Doppio clic su un testo, una nota o un collegamento per riscriverli.',
-  edittext: 'Fai clic su un blocco di testo della pagina per modificarlo, o in un punto vuoto per aggiungere testo.',
-  editimage: 'Fai clic su un\'immagine della pagina per spostarla, ridimensionarla, sostituirla o eliminarla.',
-  redactarea: 'Trascina un rettangolo sull\'area da eliminare. Le redazioni vengono applicate al salvataggio.',
-  redacttext: 'Trascina lungo il testo da eliminare. Le redazioni vengono applicate al salvataggio.',
-  link: 'Trascina un rettangolo sull\'area che deve aprire un indirizzo web o un\'altra pagina.',
-  crop: 'Trascina un rettangolo sull\'area da tenere. Puoi applicarlo a una o più pagine.',
+  select: 'Click a comment to change it. Double-click a text box, a note or a link to rewrite it.',
+  edittext: 'Click a block of text on the page to edit it, or click an empty spot to add text.',
+  editimage: 'Click an image on the page to move, resize, replace or delete it.',
+  redactarea: 'Drag a rectangle over the area to remove. Redactions are applied when you save.',
+  redacttext: 'Drag along the text to remove. Redactions are applied when you save.',
+  link: 'Drag a rectangle over the area that should open a web address or another page.',
+  crop: 'Drag a rectangle over the area to keep. You can apply it to one or more pages.',
 };
 export function renderProps() {
   const el = $('#props'), s = selected();
@@ -982,7 +1008,7 @@ export function renderProps() {
   else if (s?.kind === 'edit') { obj = s.e; type = { text: 'ctext', image: 'cimage', newimage: 'cnewimage', redact: 'redact' }[s.e.kind]; }
   else if (s?.kind === 'vimage') type = 'cimage';
   else type = TOOL_TYPE[S.tool];
-  const author = `<label class="fld">Autore <input type="text" id="pAuthor" placeholder="Il tuo nome" value="${esc(S.author)}"></label>`;
+  const author = `<label class="fld">Author <input type="text" id="pAuthor" placeholder="Your name" value="${esc(S.author)}"></label>`;
   if (!type || ((S.tool === 'image' || S.tool === 'sign') && !s) || (type === 'cimage' && !s) || (type === 'ctext' && !s && S.tool !== 'edittext')) {
     el.innerHTML = `<span class="hint">${esc(HINTS[S.tool] || '')}</span>${S.mode === 'comment' ? author : ''}`;
     $('#pAuthor')?.addEventListener('change', e => { S.author = e.target.value.trim(); store('margine.author', S.author); });
@@ -994,12 +1020,12 @@ export function renderProps() {
     const d = obj || DEF.ctext;
     const fam = obj ? (obj.font.startsWith('Times') ? 'serif' : obj.font.startsWith('Courier') ? 'mono' : 'sans') : d.family;
     const bold = obj ? /Bold/.test(obj.font) : d.bold, italic = obj ? /Italic|Oblique/.test(obj.font) : d.italic;
-    h += `<span class="what">Testo della pagina${obj ? '' : ' <span class="hint">· impostazioni per il testo nuovo</span>'}</span>
-      <label class="fld">Carattere <select id="pFam"><option value="sans">Sans (Helvetica)</option><option value="serif">Serif (Times)</option><option value="mono">Mono (Courier)</option></select></label>
-      <span class="seg"><button type="button" id="pBold" aria-pressed="${bold}" title="Grassetto"><b>G</b></button><button type="button" id="pItalic" aria-pressed="${italic}" title="Corsivo"><i>C</i></button></span>
-      <label class="fld">Corpo <input type="number" id="pSize" min="4" max="144" step="0.5" value="${fmt(obj ? obj.size : d.size)}"> pt</label>
+    h += `<span class="what">Page text${obj ? '' : ' <span class="hint">· settings for new text</span>'}</span>
+      <label class="fld">Font <select id="pFam"><option value="sans">Sans (Helvetica)</option><option value="serif">Serif (Times)</option><option value="mono">Mono (Courier)</option></select></label>
+      <span class="seg"><button type="button" id="pBold" aria-pressed="${bold}" title="Bold"><b>B</b></button><button type="button" id="pItalic" aria-pressed="${italic}" title="Italic"><i>I</i></button></span>
+      <label class="fld">Size <input type="number" id="pSize" min="4" max="144" step="0.5" value="${fmt(obj ? obj.size : d.size)}"> pt</label>
       ${swatches(PALETTE, obj ? obj.color : d.color)}`;
-    if (obj) h += `<button class="btn" type="button" id="pEditText">Modifica testo</button>${obj.remove?.length ? `<button class="btn ghost" type="button" id="pRevert">Ripristina originale</button>` : ''}<button class="btn ghost danger-link" type="button" id="pDelete">Elimina testo</button>`;
+    if (obj) h += `<button class="btn" type="button" id="pEditText">Edit text</button>${obj.remove?.length ? `<button class="btn ghost" type="button" id="pRevert">Restore original</button>` : ''}<button class="btn ghost danger-link" type="button" id="pDelete">Delete text</button>`;
     el.innerHTML = h;
     $('#pFam').value = fam;
     const restyle = (f, b, i) => setProp('font', fontName(f, b, i), true, { family: f, bold: b, italic: i });
@@ -1011,11 +1037,11 @@ export function renderProps() {
     on('pRevert', 'click', () => revertEdit(obj));
     on('pDelete', 'click', deleteSelected);
   } else if (type === 'cimage' || type === 'cnewimage') {
-    const label = type === 'cnewimage' ? 'Immagine aggiunta' : (obj?.replaceImageId ? 'Immagine sostituita' : 'Immagine della pagina');
-    h += `<span class="what">${label}</span><button class="btn" type="button" id="pReplace">Sostituisci…</button>`;
-    if (type === 'cnewimage') h += `<label class="fld">Opacità <input type="range" id="pOpacity" min="10" max="100" step="5" value="${Math.round((obj.opacity ?? 1) * 100)}"><output id="oOpacity">${Math.round((obj.opacity ?? 1) * 100)}%</output></label>`;
-    if (obj && type === 'cimage') h += `<button class="btn ghost" type="button" id="pRevert">Ripristina originale</button>`;
-    h += `<button class="btn ghost danger-link" type="button" id="pDelete">Elimina immagine</button><span class="hint">Trascina per spostare, usa gli angoli per ridimensionare.</span>`;
+    const label = type === 'cnewimage' ? 'Added image' : (obj?.replaceImageId ? 'Replaced image' : 'Page image');
+    h += `<span class="what">${label}</span><button class="btn" type="button" id="pReplace">Replace…</button>`;
+    if (type === 'cnewimage') h += `<label class="fld">Opacity <input type="range" id="pOpacity" min="10" max="100" step="5" value="${Math.round((obj.opacity ?? 1) * 100)}"><output id="oOpacity">${Math.round((obj.opacity ?? 1) * 100)}%</output></label>`;
+    if (obj && type === 'cimage') h += `<button class="btn ghost" type="button" id="pRevert">Restore original</button>`;
+    h += `<button class="btn ghost danger-link" type="button" id="pDelete">Delete image</button><span class="hint">Drag to move, use the corners to resize.</span>`;
     el.innerHTML = h;
     on('pReplace', 'click', () => { const inp = $('#fileReplace'); inp.value = ''; inp.onchange = () => { if (inp.files[0]) replaceImage(selected(), inp.files[0]); }; inp.click(); });
     on('pRevert', 'click', () => revertEdit(obj));
@@ -1023,38 +1049,38 @@ export function renderProps() {
     on('pOpacity', 'input', e => { setProp('opacity', e.target.value / 100, false); $('#oOpacity').textContent = e.target.value + '%'; }); on('pOpacity', 'change', e => setProp('opacity', e.target.value / 100, true));
   } else if (type === 'redact') {
     const fill = obj ? obj.fill : DEF.redact.fill;
-    h += `<span class="what">Redazione${obj ? '' : ' <span class="hint">· trascina sulla pagina</span>'}</span>
-      <label class="fld">Riempimento <select id="pFill"><option value="#000000">Nero</option><option value="#ffffff">Bianco</option><option value="none">Nessuno (solo rimozione)</option></select></label>
-      <label class="fld"><input type="checkbox" id="pRedPrev" ${S.showRedactPreview ? 'checked' : ''}> Mostra come sarà</label>`;
-    if (obj) h += `<button class="btn ghost danger-link" type="button" id="pDelete">Rimuovi contrassegno</button>`;
-    h += `<span class="hint">Testo, immagini e grafica sotto le aree vengono eliminati dal file al salvataggio.</span>`;
+    h += `<span class="what">Redaction${obj ? '' : ' <span class="hint">· drag on the page</span>'}</span>
+      <label class="fld">Fill <select id="pFill"><option value="#000000">Black</option><option value="#ffffff">White</option><option value="none">None (remove only)</option></select></label>
+      <label class="fld"><input type="checkbox" id="pRedPrev" ${S.showRedactPreview ? 'checked' : ''}> Show final result</label>`;
+    if (obj) h += `<button class="btn ghost danger-link" type="button" id="pDelete">Remove mark</button>`;
+    h += `<span class="hint">Text, images and graphics under the marked areas are removed from the file when you save.</span>`;
     el.innerHTML = h;
     $('#pFill').value = fill || '#000000';
     on('pFill', 'change', e => setProp('fill', e.target.value, true));
     on('pRedPrev', 'change', e => { S.showRedactPreview = e.target.checked; refreshOverlays(); });
     on('pDelete', 'click', deleteSelected);
   } else if (type === 'link') {
-    h += `<span class="what">Collegamento</span>`;
+    h += `<span class="what">Link</span>`;
     if (obj) {
-      const tgt = obj.url ? esc(obj.url) : (obj.targetPage && S.pages.findIndex(p => p.id === obj.targetPage) >= 0 ? `pagina ${S.pages.findIndex(p => p.id === obj.targetPage) + 1}` : 'pagina eliminata');
-      h += `<span class="hint">Apre ${tgt}</span><button class="btn" type="button" id="pEditLink">Modifica destinazione</button><button class="btn ghost danger-link" type="button" id="pDelete">Elimina</button>`;
+      const tgt = obj.url ? esc(obj.url) : (obj.targetPage && S.pages.findIndex(p => p.id === obj.targetPage) >= 0 ? `page ${S.pages.findIndex(p => p.id === obj.targetPage) + 1}` : 'a deleted page');
+      h += `<span class="hint">Opens ${tgt}</span><button class="btn" type="button" id="pEditLink">Change destination</button><button class="btn ghost danger-link" type="button" id="pDelete">Delete</button>`;
     } else h += `<span class="hint">${esc(HINTS.link)}</span>`;
     el.innerHTML = h;
     on('pEditLink', 'click', () => { const pv = views.get(obj.pageId); if (pv) openLinkPopover(pv, obj.rect, obj); });
     on('pDelete', 'click', deleteSelected);
   } else {
-    const d = obj || DEF[type] || {}, label = obj && obj.type === 'line' && obj.arrow ? 'Freccia' : (S.tool === 'arrow' && !obj ? 'Freccia' : TYPE_LABEL[type]);
+    const d = obj || DEF[type] || {}, label = obj && obj.type === 'line' && obj.arrow ? 'Arrow' : (S.tool === 'arrow' && !obj ? 'Arrow' : TYPE_LABEL[type]);
     const pal = type === 'highlight' ? HL_PALETTE : PALETTE;
-    h += `<span class="what">${esc(label)}${obj ? '' : ' <span class="hint">· impostazioni</span>'}</span>`;
+    h += `<span class="what">${esc(label)}${obj ? '' : ' <span class="hint">· settings</span>'}</span>`;
     if (type !== 'stamp') h += swatches(pal, d.color);
-    if (['ink', 'rect', 'ellipse', 'line'].includes(type)) h += `<label class="fld">Spessore <input type="range" id="pWidth" min="0.5" max="12" step="0.5" value="${d.width}"><output id="oWidth">${fmt(d.width)} pt</output></label>`;
-    if (['ink', 'rect', 'ellipse', 'line', 'highlight', 'underline', 'strike', 'stamp'].includes(type)) h += `<label class="fld">Opacità <input type="range" id="pOpacity" min="10" max="100" step="5" value="${Math.round((d.opacity ?? 1) * 100)}"><output id="oOpacity">${Math.round((d.opacity ?? 1) * 100)}%</output></label>`;
-    if (type === 'rect' || type === 'ellipse') h += `<label class="fld"><input type="checkbox" id="pFillOn" ${d.fill ? 'checked' : ''}> Riempimento</label><span class="sw"><input type="color" id="pFill" value="${d.fill || '#fff3b0'}" aria-label="Colore di riempimento"></span>`;
-    if (type === 'text') h += `<label class="fld">Corpo <input type="number" id="pSize" min="5" max="96" step="1" value="${fmt(d.size)}"> pt</label>`;
-    if (obj && type !== 'text' && type !== 'note') h += `<label class="fld">Commento <input type="text" id="pComment" placeholder="Visibile nei lettori PDF" value="${esc(obj.contents || '')}"></label>`;
-    if (obj && type === 'note') h += `<button class="btn" type="button" id="pEditNote">Modifica nota</button>`;
-    if (obj && type === 'text') h += `<button class="btn" type="button" id="pEditText">Modifica testo</button>`;
-    if (obj) h += `<button class="btn ghost danger-link" type="button" id="pDelete">Elimina</button>`;
+    if (['ink', 'rect', 'ellipse', 'line'].includes(type)) h += `<label class="fld">Width <input type="range" id="pWidth" min="0.5" max="12" step="0.5" value="${d.width}"><output id="oWidth">${fmt(d.width)} pt</output></label>`;
+    if (['ink', 'rect', 'ellipse', 'line', 'highlight', 'underline', 'strike', 'stamp'].includes(type)) h += `<label class="fld">Opacity <input type="range" id="pOpacity" min="10" max="100" step="5" value="${Math.round((d.opacity ?? 1) * 100)}"><output id="oOpacity">${Math.round((d.opacity ?? 1) * 100)}%</output></label>`;
+    if (type === 'rect' || type === 'ellipse') h += `<label class="fld"><input type="checkbox" id="pFillOn" ${d.fill ? 'checked' : ''}> Fill</label><span class="sw"><input type="color" id="pFill" value="${d.fill || '#fff3b0'}" aria-label="Fill colour"></span>`;
+    if (type === 'text') h += `<label class="fld">Size <input type="number" id="pSize" min="5" max="96" step="1" value="${fmt(d.size)}"> pt</label>`;
+    if (obj && type !== 'text' && type !== 'note') h += `<label class="fld">Comment <input type="text" id="pComment" placeholder="Shown in PDF readers" value="${esc(obj.contents || '')}"></label>`;
+    if (obj && type === 'note') h += `<button class="btn" type="button" id="pEditNote">Edit note</button>`;
+    if (obj && type === 'text') h += `<button class="btn" type="button" id="pEditText">Edit text</button>`;
+    if (obj) h += `<button class="btn ghost danger-link" type="button" id="pDelete">Delete</button>`;
     el.innerHTML = h;
     on('pWidth', 'input', e => { setProp('width', +e.target.value, false); $('#oWidth').textContent = fmt(+e.target.value) + ' pt'; }); on('pWidth', 'change', e => setProp('width', +e.target.value, true));
     on('pOpacity', 'input', e => { setProp('opacity', e.target.value / 100, false); $('#oOpacity').textContent = e.target.value + '%'; }); on('pOpacity', 'change', e => setProp('opacity', e.target.value / 100, true));
@@ -1083,7 +1109,7 @@ function setProp(key, val, final, extra = {}) {
   // defaults for new objects
   const type = s?.kind === 'annot' ? s.a.type : s?.kind === 'edit' ? { text: 'ctext', redact: 'redact' }[s.e.kind] : TOOL_TYPE[S.tool];
   if (type === 'ctext') { if (key === 'font') Object.assign(DEF.ctext, extra); else if (key === 'size' || key === 'color') DEF.ctext[key] = val; }
-  else if (key !== 'contents' && DEF[type] && !(s?.a?.type === 'ink' && s.a.contents === 'Firma')) DEF[type][key] = val;
+  else if (key !== 'contents' && DEF[type] && !(s?.a?.type === 'ink' && s.a.contents === 'Signature')) DEF[type][key] = val;
   if (final) store('margine.defaults', JSON.stringify(DEF));
 }
 
@@ -1098,7 +1124,7 @@ export function setTool(t) {
   if (t !== 'select' && t !== 'edittext' && t !== 'editimage') { S.sel = null; renderSelection(); }
   for (const pv of views.values()) { pv.ui.querySelectorAll('.hover-box').forEach(n => n.remove()); pv.el.style.cursor = ''; }
   if ((t === 'edittext' || t === 'redactarea' || t === 'redacttext') && !engine.engine.available) {
-    engine.startEngine().then(ok => { updateStatus(); if (!ok) toast('Questo strumento richiede il motore MuPDF, che non si è caricato.', 'error'); });
+    engine.startEngine().then(ok => { updateStatus(); if (!ok) toast('This tool needs the MuPDF engine, which did not load.', 'error'); });
   }
   if (t === 'edittext') { const pv = curView(); if (pv) pageBlocks(pv.page); }
   renderProps();

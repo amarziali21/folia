@@ -18,7 +18,7 @@ export function startEngine() {
   ready = (async () => {
     try {
       const dir = typeof MUPDF_DIR === 'string' ? MUPDF_DIR : '';
-      if (!dir) throw new Error('MuPDF non incluso in questa build');
+      if (!dir) throw new Error('MuPDF is not included in this build');
       const base = new URL('.', document.baseURI);
       worker = new Worker(new URL('assets/mupdf-worker.js', base), { type: 'module' });
       worker.onmessage = ev => {
@@ -26,12 +26,12 @@ export function startEngine() {
         if (!p) return; pending.delete(id);
         error ? p.reject(new Error(error)) : p.resolve(result);
       };
-      worker.onerror = ev => { engine.error = ev.message || 'errore del worker'; };
+      worker.onerror = ev => { engine.error = ev.message || 'worker error'; };
       const info = await call('init', { url: new URL(dir + 'mupdf.js', base).href });
       engine.available = true; engine.version = info?.version || (dir.match(/mupdf-([\d.]+)/) || [])[1] || null;
     } catch (e) {
       engine.available = false; engine.error = String(e?.message || e);
-      console.warn('MuPDF non disponibile:', engine.error);
+      console.warn('MuPDF not available:', engine.error);
     }
     return engine.available;
   })();

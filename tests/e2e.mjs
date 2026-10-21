@@ -65,6 +65,12 @@ try {
   await page.waitForTimeout(800);
   await shot('start');
 
+  /* ---------- the Open and Insert buttons open a file chooser ---------- */
+  for (const id of ['#btnOpen', '#btnAdd']) {
+    const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 5000 }), page.click(id)]);
+    assert.ok(fc, `${id} opens a file chooser`);
+  }
+
   /* ---------- comments still work ---------- */
   await page.keyboard.press('r'); await dragPath(0, [[70, 240], [200, 280]]);
   await page.keyboard.press('u'); await dragPath(0, [[66, 650], [200, 650]]);
@@ -75,17 +81,17 @@ try {
     // edit the title
     await click(0, 120, H - 94);
     await page.waitForSelector('.ed-content');
-    assert.equal(await page.inputValue('.ed-content'), 'Verbale di consegna apparati');
-    await page.fill('.ed-content', 'Verbale di consegna dei server');
+    assert.equal(await page.inputValue('.ed-content'), 'Equipment delivery report');
+    await page.fill('.ed-content', 'Equipment delivery report for servers');
     await click(0, 300, 110); // commit by clicking on an empty spot, which starts a new text there
     await page.waitForFunction(() => document.querySelector('.ed-content')?.value === '');
-    await page.keyboard.type('Testo aggiunto in fondo');
+    await page.keyboard.type('Text added at the bottom');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(1200);
     await shot('text-edited');
     const ed = await page.evaluate(() => window.margine.S.edits.map(e => [e.kind, e.text, (e.remove || []).length]));
-    assert.ok(ed.some(e => e[0] === 'text' && e[1] === 'Verbale di consegna dei server' && e[2] === 1), 'title edit recorded');
-    assert.ok(ed.some(e => e[0] === 'text' && e[1] === 'Testo aggiunto in fondo' && e[2] === 0), 'new text recorded');
+    assert.ok(ed.some(e => e[0] === 'text' && e[1] === 'Equipment delivery report for servers' && e[2] === 1), 'title edit recorded');
+    assert.ok(ed.some(e => e[0] === 'text' && e[1] === 'Text added at the bottom' && e[2] === 0), 'new text recorded');
   }
   // move the logo image 120 pt to the left
   await page.click('#tools [data-tool="editimage"]');
@@ -113,7 +119,7 @@ try {
   await page.dispatchEvent('#bPrefix', 'input');
   await page.click('#hfApply');
   await page.click('#tools [data-act="wm"]');
-  await page.fill('#wmText', 'RISERVATO');
+  await page.fill('#wmText', 'CONFIDENTIAL');
   await page.dispatchEvent('#wmText', 'input');
   await page.click('#wmApply');
   // link on page 1 to page 2
@@ -126,7 +132,7 @@ try {
   await page.evaluate(() => { window.margine.S.cur = window.margine.S.pages[1].id; });
   await page.click('#tools [data-act="bookmarks"]');
   await page.click('#bmTools [data-bm="add"]');
-  await page.keyboard.type('Firma e accettazione'); await page.keyboard.press('Enter');
+  await page.keyboard.type('Signature and acceptance'); await page.keyboard.press('Enter');
   await page.waitForTimeout(500);
   await shot('doc-tools');
 
@@ -152,22 +158,22 @@ try {
   if (mupdf) {
     const t1 = mText(bytes, 0), t2 = mText(bytes, 1);
     fs.writeFileSync(path.join(out, 'result-p1.txt'), t1);
-    assert.match(t1, /RISERVATO/, 'watermark');
+    assert.match(t1, /CONFIDENTIAL/, 'watermark');
     assert.match(t1, /MG-000001/, 'Bates number page 1');
     assert.match(t2, /MG-000002/, 'Bates number page 2');
-    assert.match(t1, /Pagina 1 di 3/, 'footer');
+    assert.match(t1, /Page 1 of 3/, 'footer');
     if (hasEngine) {
-      assert.match(t1, /Verbale di consegna dei server/, 'edited title present');
-      assert.doesNotMatch(t1, /consegna apparati/, 'old title removed');
-      assert.match(t1, /Testo aggiunto in fondo/, 'new text present');
+      assert.match(t1, /Equipment delivery report for servers/, 'edited title present');
+      assert.equal(t1.split('Equipment delivery report').length, 2, 'old title removed');
+      assert.match(t1, /Text added at the bottom/, 'new text present');
       assert.doesNotMatch(t1, /2026\/0417/, 'redacted area removed');
-      assert.doesNotMatch(t1, /giulia\.ferrari@esempio\.it/, 'email redacted');
-      assert.match(t1, /Il presente verbale attesta/, 'other text kept');
+      assert.doesNotMatch(t1, /jane\.fuller@example\.com/, 'email redacted');
+      assert.match(t1, /This report confirms the delivery/, 'other text kept');
     }
     const doc = new mupdf.PDFDocument(new Uint8Array(bytes));
     const outline = doc.loadOutline() || [];
     console.log('outline', outline.map(o => o.title));
-    assert.ok(outline.some(o => o.title === 'Firma e accettazione'), 'new bookmark');
+    assert.ok(outline.some(o => o.title === 'Signature and acceptance'), 'new bookmark');
   }
   const { pageImages } = await import(path.join(root, 'src/content.js')).catch(() => ({}));
   if (pageImages) {

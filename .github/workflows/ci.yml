@@ -26,22 +26,22 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Installa le dipendenze
+      - name: Install dependencies
         run: npm ci
-      - name: Installa Chromium per i test
+      - name: Install Chromium for the tests
         run: npx playwright install --with-deps chromium
       - name: Build
         run: npm run build
       - name: Test
         run: npm test
-      - name: Salva i risultati dei test
+      - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results
           path: test-results/
           retention-days: 7
-      - name: Salva il sito
+      - name: Upload the site
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -56,26 +56,26 @@ jobs:
       contents: read
       deployments: write
     steps:
-      - name: Controlla le credenziali Cloudflare
+      - name: Check the Cloudflare credentials
         id: cf
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           if [ -n "$TOKEN" ] && [ -n "$ACCOUNT" ]; then echo "ok=1" >> "$GITHUB_OUTPUT";
-          else echo "::notice title=Deploy saltato::Aggiungi i secret CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID per pubblicare su Cloudflare Pages."; fi
+          else echo "::notice title=Deploy skipped::Add the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID secrets to publish to Cloudflare Pages."; fi
       - uses: actions/download-artifact@v4
         if: steps.cf.outputs.ok == '1'
         with:
           name: dist
           path: dist
-      - name: Crea il progetto Pages (solo la prima volta)
+      - name: Create the Pages project (first run only)
         if: steps.cf.outputs.ok == '1'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx --yes wrangler@4 pages project create margine-pdf --production-branch=main || echo "Il progetto esiste già"
-      - name: Pubblica su Cloudflare Pages
+        run: npx --yes wrangler@4 pages project create margine-pdf --production-branch=main || echo "The project already exists"
+      - name: Deploy to Cloudflare Pages
         if: steps.cf.outputs.ok == '1'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

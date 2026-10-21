@@ -153,7 +153,7 @@ body[data-tool="select"] .pv-forms > *:hover, .pv-forms > *:focus { border-color
 .pv-ui > * { position: absolute; }
 .sel { border: 1.5px solid var(--accent); border-radius: 2px; pointer-events: none; }
 .hover-box { border: 1.5px dashed #2346c4; background: rgb(35 70 196 / .06); border-radius: 2px; pointer-events: none; }
-.ghost { border: 1.5px dashed #2346c4; background: rgb(35 70 196 / .1); pointer-events: none; }
+.drag-ghost { border: 1.5px dashed #2346c4; background: rgb(35 70 196 / .1); pointer-events: none; }
 .hit { background: rgb(255 212 0 / .45); outline: 1px solid rgb(200 150 0 / .8); pointer-events: none; mix-blend-mode: multiply; }
 .hit.cur { background: rgb(255 140 0 / .5); outline: 2px solid #e8790c; }
 .handle { width: 12px; height: 12px; margin: -6px 0 0 -6px; background: var(--surface); border: 1.5px solid var(--accent); border-radius: 3px; pointer-events: auto; touch-action: none; z-index: 2; }

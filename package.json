@@ -2,7 +2,7 @@
   "name": "margine-pdf",
   "version": "0.2.0",
   "private": true,
-  "description": "Editor PDF nel browser: pagine, commenti nativi, modifica del contenuto, redazione e strumenti documento.",
+  "description": "PDF editor in the browser: pages, native comments, content editing, redaction and document tools.",
   "type": "module",
   "license": "AGPL-3.0-or-later",
   "scripts": {

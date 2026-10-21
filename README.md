@@ -1,67 +1,67 @@
 # Margine PDF
 
-Editor PDF che gira interamente nel browser: i file non lasciano il computer di chi lo usa.
+A PDF editor that runs entirely in the browser. Files never leave the computer of the person using it.
 
-## Cosa fa
+## Features
 
-**Pagine**: miniature, riordino trascinando, rotazione, eliminazione, pagine vuote, unione di più PDF (anche trascinandoli in un punto preciso), estrazione e divisione in più file, ritaglio.
+**Pages**: thumbnails, drag to reorder, rotate, delete, blank pages, merge several PDFs (including dropping them at a precise position), extract and split into several files, crop.
 
-**Commenti**: testo libero, evidenziatore, sottolineato, barrato, penna, note, rettangoli, ellissi, linee, frecce, immagini e timbri, firma disegnata. Sono annotazioni PDF native, quindi restano modificabili in Acrobat e negli altri lettori. Quelle già presenti nel file diventano modificabili.
+**Comments**: text boxes, highlight, underline, strikethrough, pen, notes, rectangles, ellipses, lines, arrows, images and stamps, drawn signatures. They are native PDF annotations, so they stay editable in Acrobat and other readers. Annotations already in a file become editable.
 
-**Modifica del contenuto**:
-- Testo della pagina: si fa clic su un blocco e lo si riscrive. Il testo originale viene rimosso dal file e sostituito con uno dei font standard PDF (Helvetica, Times o Courier, con grassetto e corsivo).
-- Testo nuovo scritto nel contenuto della pagina.
-- Immagini della pagina: si possono spostare, ridimensionare, sostituire ed eliminare.
-- Redazione vera: per area, lungo il testo o con la ricerca, anche per email, telefono, IBAN, codice fiscale, partita IVA e date. Il contenuto coperto viene eliminato dal file al salvataggio.
+**Content editing**:
+- Page text: click a block and rewrite it. The original text is removed from the file and replaced with one of the standard PDF fonts (Helvetica, Times or Courier, with bold and italic).
+- New text written into the page content.
+- Page images: move, resize, replace and delete them.
+- True redaction: by area, along text, or with search, including email addresses, phone numbers, IBANs, Italian tax codes and VAT numbers, and dates. The covered content is removed from the file when you save.
 
-**Documento**: intestazione e piè di pagina con numeri di pagina, data, nome del file e numerazione Bates; filigrana; collegamenti a pagine o indirizzi web; segnalibri (lettura, modifica, rientri); proprietà; protezione con password AES-256 e permessi; apertura di PDF protetti.
+**Document**: header and footer with page numbers, date, file name and Bates numbering; watermark; links to pages or web addresses; bookmarks (read, edit, indent); properties; AES-256 password protection with permissions; opening protected PDFs.
 
-**Moduli**: compilazione dei campi AcroForm, che restano campi veri nel file salvato.
+**Forms**: filling in AcroForm fields, which stay real fields in the saved file.
 
-## Come funziona
+## How it works
 
-| Componente | Ruolo | Licenza |
+| Component | Role | Licence |
 |---|---|---|
-| [pdf.js](https://github.com/mozilla/pdf.js) | Visualizzazione delle pagine | Apache-2.0 |
-| [pdf-lib](https://github.com/Hopding/pdf-lib) | Scrittura del PDF: pagine, annotazioni, contenuti, moduli, segnalibri | MIT |
-| [MuPDF.js](https://github.com/ArtifexSoftware/mupdf.js) | Lettura strutturata del testo, rimozione del testo e redazione, cifratura | AGPL-3.0 |
+| [pdf.js](https://github.com/mozilla/pdf.js) | Displays the pages | Apache-2.0 |
+| [pdf-lib](https://github.com/Hopding/pdf-lib) | Writes the PDF: pages, annotations, content, forms, bookmarks | MIT |
+| [MuPDF.js](https://github.com/ArtifexSoftware/mupdf.js) | Structured text, text removal and redaction, encryption | AGPL-3.0 |
 
-MuPDF gira in un Web Worker e viene caricato dalla cartella `vendor/mupdf-<versione>/`. Se non è disponibile, tutto il resto funziona e gli strumenti che ne hanno bisogno lo segnalano.
+MuPDF runs in a Web Worker and loads from `vendor/mupdf-<version>/`. If it is unavailable, everything else keeps working and the tools that need it say so.
 
-Ogni modifica è un oggetto JSON nello stato dell'editor (`src/state.js`). Annulla e Ripeti salvano istantanee di quello stato. Il file viene scritto solo al salvataggio (`src/export.js`):
+Every change is a JSON object in the editor state (`src/state.js`), and undo and redo save snapshots of that state. The file is only written when you save (`src/export.js`):
 
-1. Per ogni file di origine si applicano le modifiche al contenuto. Le immagini si modificano riscrivendo gli operatori della pagina (`src/content.js`), testo e redazioni passano da MuPDF, poi si aggiunge il contenuto nuovo.
-2. Le pagine vengono copiate in un documento nuovo, così le pagine eliminate spariscono davvero.
-3. Si scrivono i commenti, gli strumenti documento, i moduli, i segnalibri e le proprietà.
-4. Se richiesta, si applica la cifratura.
+1. Content edits are applied to each source file. Images are changed by rewriting the page operators (`src/content.js`), text removal and redactions go through MuPDF, then the new content is added.
+2. Pages are copied into a new document, so deleted pages are really gone.
+3. Comments, document tools, form values, bookmarks and properties are written.
+4. If requested, the file is encrypted.
 
-## Sviluppo
+## Development
 
 ```bash
 npm ci
-npm run build      # crea dist/
+npm run build      # builds dist/
 npm run serve      # http://127.0.0.1:8790/
-npm run dev        # build continua + server
+npm run dev        # rebuild on change + server
 npx playwright install chromium
-npm test           # test unitari ed end-to-end (salva gli screenshot in test-results/)
+npm test           # unit and end-to-end tests (screenshots in test-results/)
 ```
 
-## Pubblicazione su Cloudflare Pages
+## Deploying to Cloudflare Pages
 
-Il workflow `.github/workflows/ci.yml` compila, esegue i test e pubblica:
+The `.github/workflows/ci.yml` workflow builds, runs the tests and deploys:
 
-- **main** va in produzione;
-- gli altri rami e le pull request ricevono un'anteprima.
+- **main** goes to production;
+- other branches and pull requests get a preview deployment.
 
-Servono due secret del repository (*Settings → Secrets and variables → Actions*):
+It needs two repository secrets (*Settings → Secrets and variables → Actions*):
 
-- `CLOUDFLARE_API_TOKEN`: un token con il permesso *Account › Cloudflare Pages › Edit*;
-- `CLOUDFLARE_ACCOUNT_ID`: l'ID dell'account Cloudflare.
+- `CLOUDFLARE_API_TOKEN`: a token with the *Account › Cloudflare Pages › Edit* permission;
+- `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID.
 
-Al primo deploy il workflow crea il progetto Pages `margine-pdf`. Finché i secret mancano, la pubblicazione viene saltata senza errori.
+The first deploy creates the `margine-pdf` Pages project. Until the secrets exist, deploying is skipped without failing the run.
 
-Il workflow `deps-snapshot.yml` copia i pacchetti npm usati dalla build nel ramo `dev-deps`. Serve solo ad ambienti di sviluppo senza accesso a npm e si può ignorare.
+The `deps-snapshot.yml` workflow copies the npm packages used by the build to the `dev-deps` branch. It only serves development environments without npm access and can be ignored.
 
-## Licenza
+## Licence
 
-AGPL-3.0-or-later (vedi `LICENSE`), perché il progetto include MuPDF. Chi usa il sito pubblicato ha diritto al codice sorgente, che è questo repository.
+AGPL-3.0-or-later (see `LICENSE`), because the project includes MuPDF. Anyone who uses a deployed copy over a network is entitled to its source code. If this repository is private, either limit the site to your own team (for example with Cloudflare Access) or publish the source somewhere its users can get it.

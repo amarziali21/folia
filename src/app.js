@@ -30,11 +30,11 @@ export function modal(html, setup) {
   });
 }
 export function confirmBox(title, body, okLabel) {
-  return modal(`<h2>${esc(title)}</h2><p>${esc(body)}</p><div class="row"><button class="btn" type="button" data-act="no">Annulla</button><button class="btn primary" type="button" data-act="yes">${esc(okLabel)}</button></div>`,
+  return modal(`<h2>${esc(title)}</h2><p>${esc(body)}</p><div class="row"><button class="btn" type="button" data-act="no">Cancel</button><button class="btn primary" type="button" data-act="yes">${esc(okLabel)}</button></div>`,
     (p, done) => { p.querySelector('[data-act="no"]').onclick = () => done(false); const y = p.querySelector('[data-act="yes"]'); y.onclick = () => done(true); y.focus(); }).then(v => !!v);
 }
 function passwordBox(title, body, label) {
-  return modal(`<h2>${esc(title)}</h2><p>${esc(body)}</p><label class="stack">${esc(label)}<input type="password" id="pwInput" autocomplete="off"></label><p class="err" id="pwErr" hidden></p><div class="row"><button class="btn" type="button" data-act="no">Annulla</button><button class="btn primary" type="button" data-act="yes">Sblocca</button></div>`,
+  return modal(`<h2>${esc(title)}</h2><p>${esc(body)}</p><label class="stack">${esc(label)}<input type="password" id="pwInput" autocomplete="off"></label><p class="err" id="pwErr" hidden></p><div class="row"><button class="btn" type="button" data-act="no">Cancel</button><button class="btn primary" type="button" data-act="yes">Unlock</button></div>`,
     (p, done) => {
       const inp = p.querySelector('#pwInput');
       p.querySelector('[data-act="no"]').onclick = () => done(null);
@@ -62,7 +62,7 @@ export function updateHistUI() { $('#btnUndo').disabled = !hist.undo.length; $('
 export function setDirty(v = true) { S.dirty = v; if (v) S.isSample = false; updateTitle(); updateStatus(); }
 export function updateTitle() {
   const names = [...new Set(S.pages.map(p => S.files.get(p.fileId).name))];
-  $('#docName').textContent = names.length ? names[0] + (names.length > 1 ? ` + ${names.length - 1}` : '') : 'Nessun documento';
+  $('#docName').textContent = names.length ? names[0] + (names.length > 1 ? ` + ${names.length - 1}` : '') : 'No document';
   $('#docName').title = names.join(', ');
   $('#sampleChip').hidden = !S.isSample;
   $('#lockChip').hidden = !(S.doc.protect && (S.doc.protect.user || S.doc.protect.owner));
@@ -72,17 +72,17 @@ export function updateTitle() {
 
 /* ------------------------------------------------------------ opening files */
 async function unlock(bytes, name) {
-  if (!(await engine.startEngine())) throw userError(`«${name}» è protetto: per aprirlo serve il motore MuPDF, che non si è caricato.`);
+  if (!(await engine.startEngine())) throw userError(`"${name}" is protected: opening it needs the MuPDF engine, which did not load.`);
   const info = await engine.inspect(bytes);
   let msg = '';
   for (;;) {
-    const pw = await passwordBox(info.needsPassword ? 'PDF protetto da password' : 'PDF con restrizioni',
-      (msg ? msg + ' ' : '') + (info.needsPassword ? `Inserisci la password per aprire «${name}».` : `«${name}» limita le modifiche. Per modificarlo inserisci la password dei permessi.`),
-      info.needsPassword ? 'Password' : 'Password dei permessi');
-    if (pw == null) throw userError(`Apertura di «${name}» annullata.`);
+    const pw = await passwordBox(info.needsPassword ? 'Password-protected PDF' : 'Restricted PDF',
+      (msg ? msg + ' ' : '') + (info.needsPassword ? `Enter the password to open "${name}".` : `"${name}" restricts editing. Enter the permissions password to edit it.`),
+      info.needsPassword ? 'Password' : 'Permissions password');
+    if (pw == null) throw userError(`Opening "${name}" was cancelled.`);
     const r = await engine.decrypt(bytes, pw, !info.needsPassword);
     if (r.ok) return r.bytes;
-    msg = r.reason === 'owner' ? 'Questa password non consente le modifiche.' : 'Password errata.';
+    msg = r.reason === 'owner' ? 'This password does not allow editing.' : 'Wrong password.';
   }
 }
 async function loadPdfFile(bytes, name) {
@@ -90,12 +90,12 @@ async function loadPdfFile(bytes, name) {
   try { prep = await prepareFile(bytes); }
   catch (e) {
     if (/encrypt/i.test(e?.message || '') || e?.name === 'EncryptedPDFError') prep = await prepareFile(await unlock(bytes, name));
-    else throw userError(`«${name}» non è un PDF leggibile.`);
+    else throw userError(`"${name}" is not a readable PDF.`);
   }
   const { lib, imported, baseBytes } = prep;
   let pdf;
   try { pdf = await pdfjs.getDocument({ data: baseBytes.slice(), ...PDFJS_OPTS }).promise; }
-  catch (e) { console.error(e); throw userError(`«${name}» non può essere visualizzato.`); }
+  catch (e) { console.error(e); throw userError(`"${name}" cannot be displayed.`); }
   const count = Math.min(pdf.numPages, lib.getPageCount());
   const file = { id: uid('f'), name, lib, pdf, baseBytes, pages: [], imported };
   for (let i = 0; i < count; i++) {
@@ -125,9 +125,9 @@ function fieldInfo(fileId, w) {
 export async function openFiles(items, { replace = false, sample = false, insertAt = null, quiet = false } = {}) {
   const loaded = [];
   for (const it of items) {
-    if (!quiet && (items.length > 1 || it.bytes.length > 4e6)) toast(`Apertura di «${it.name}»…`);
+    if (!quiet && (items.length > 1 || it.bytes.length > 4e6)) toast(`Opening "${it.name}"…`);
     try { loaded.push(await loadPdfFile(it.bytes, it.name)); }
-    catch (e) { toast(e.user ? e.message : `Errore nell'apertura di «${it.name}».`, 'error'); console.error(e); }
+    catch (e) { toast(e.user ? e.message : `Could not open "${it.name}".`, 'error'); console.error(e); }
   }
   if (!loaded.length) return false;
   const snap = replace ? null : snapshot();
@@ -168,29 +168,29 @@ export async function openFiles(items, { replace = false, sample = false, insert
 export async function readFiles(fileList) {
   const out = [];
   for (const f of fileList) {
-    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast(`«${f.name}» non è un PDF.`, 'error'); continue; }
+    if (!/\.pdf$/i.test(f.name) && f.type !== 'application/pdf') { toast(`"${f.name}" is not a PDF.`, 'error'); continue; }
     out.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
   }
   return out;
 }
 export async function openReplace(fileList) {
   const items = await readFiles(fileList); if (!items.length) return;
-  if (S.dirty && !(await confirmBox('Aprire un altro PDF?', 'Le modifiche non salvate a questo documento andranno perse.', 'Apri senza salvare'))) return;
+  if (S.dirty && !(await confirmBox('Open another PDF?', 'Unsaved changes to this document will be lost.', 'Open without saving'))) return;
   const [first, ...rest] = items;
   if (await openFiles([first], { replace: true }) && rest.length) await openFiles(rest);
 }
 export async function openAppend(fileList, insertAt = null) {
   const items = await readFiles(fileList); if (!items.length) return;
   if (S.isSample && !S.dirty) { const [first, ...rest] = items; if (await openFiles([first], { replace: true }) && rest.length) await openFiles(rest); return; }
-  if (await openFiles(items, { insertAt })) toast(items.length === 1 ? 'PDF inserito nel documento.' : `${items.length} PDF inseriti nel documento.`);
+  if (await openFiles(items, { insertAt })) toast(items.length === 1 ? 'PDF inserted into the document.' : `${items.length} PDFs inserted into the document.`);
 }
 export async function insertBlankPage() {
   const p = pageOf(S.cur) || S.pages[S.pages.length - 1]; if (!p) return;
   const vp = makeViewport(meta(p).view, 1, totalRot(p));
   const doc = await L.PDFDocument.create(); doc.addPage([vp.width, vp.height]);
   const at = S.pages.indexOf(p) + 1;
-  if (await openFiles([{ name: 'Pagina vuota', bytes: await doc.save() }], { insertAt: at, quiet: true })) {
-    S.cur = S.pages[at].id; views.get(S.cur)?.el.scrollIntoView({ block: 'start' }); toast('Pagina vuota inserita.');
+  if (await openFiles([{ name: 'Blank page', bytes: await doc.save() }], { insertAt: at, quiet: true })) {
+    S.cur = S.pages[at].id; views.get(S.cur)?.el.scrollIntoView({ block: 'start' }); toast('Blank page inserted.');
   }
 }
 
@@ -232,7 +232,7 @@ export function scheduleVariant(fileId, idx, delay = 120) {
       if (prev) { try { prev.pdf?.destroy(); } catch { /* closed */ } }
     } catch (e) {
       console.error(e);
-      toast(e.user ? e.message : 'Anteprima della modifica non riuscita.', 'error');
+      toast(e.user ? e.message : 'Could not preview the edit.', 'error');
     }
     refreshSource(fileId, idx);
   }, delay));
@@ -378,13 +378,13 @@ export function rebuildThumbs() {
     th.num.textContent = i + 1;
     th.el.setAttribute('aria-selected', S.selPages.has(p.id) ? 'true' : 'false');
     th.el.classList.toggle('cur', S.cur === p.id);
-    th.el.setAttribute('aria-label', `Pagina ${i + 1}`);
+    th.el.setAttribute('aria-label', `Page ${i + 1}`);
     ol.appendChild(th.el);
     renderThumbOverlay(th);
     if (th.key !== renderKey(p)) requestThumb(th);
   });
   const n = S.selPages.size;
-  $('#railNote').textContent = n ? (n === 1 ? '1 pagina selezionata' : `${n} pagine selezionate`) : `${S.pages.length} ${S.pages.length === 1 ? 'pagina' : 'pagine'}`;
+  $('#railNote').textContent = n ? (n === 1 ? '1 page selected' : `${n} pages selected`) : `${S.pages.length} ${S.pages.length === 1 ? 'page' : 'pages'}`;
 }
 let thumbHooks = null;
 export function setThumbHooks(h) { thumbHooks = h; }
@@ -442,14 +442,14 @@ const FORMATS = [['A5', 148, 210], ['A4', 210, 297], ['A3', 297, 420], ['Letter'
 export function updateStatus() {
   const p = pageOf(S.cur);
   const red = S.edits.filter(e => e.kind === 'redact').length;
-  $('#stRedact').textContent = red ? `${red} ${red === 1 ? 'redazione' : 'redazioni'} da applicare al salvataggio` : '';
-  $('#stEngine').textContent = engine.engine.available ? `MuPDF ${engine.engine.version || ''}`.trim() : (engine.engine.error ? 'Modifica del testo non disponibile' : '');
+  $('#stRedact').textContent = red ? `${red} ${red === 1 ? 'redaction' : 'redactions'} to apply on save` : '';
+  $('#stEngine').textContent = engine.engine.available ? `MuPDF ${engine.engine.version || ''}`.trim() : (engine.engine.error ? 'Text editing unavailable' : '');
   if (!p) { $('#stPage').textContent = '—'; $('#stFormat').textContent = ''; return; }
   const i = S.pages.indexOf(p), v = p.crop || meta(p).view, rot = totalRot(p);
   let w = (v[2] - v[0]) * 25.4 / 72, h = (v[3] - v[1]) * 25.4 / 72; if (rot % 180) [w, h] = [h, w];
   const f = FORMATS.find(([, a, b]) => (Math.abs(a - w) < 2 && Math.abs(b - h) < 2) || (Math.abs(a - h) < 2 && Math.abs(b - w) < 2));
-  $('#stPage').innerHTML = `Pagina <b>${i + 1}</b> di ${S.pages.length}`;
-  $('#stFormat').textContent = `${f ? f[0] + ' ' + (w > h ? 'orizzontale' : 'verticale') + ' · ' : ''}${Math.round(w)} × ${Math.round(h)} mm${p.crop ? ' · ritagliata' : ''}${rot ? ` · ruotata ${rot}°` : ''}`;
+  $('#stPage').innerHTML = `Page <b>${i + 1}</b> of ${S.pages.length}`;
+  $('#stFormat').textContent = `${f ? f[0] + ' ' + (w > h ? 'landscape' : 'portrait') + ' · ' : ''}${Math.round(w)} × ${Math.round(h)} mm${p.crop ? ' · cropped' : ''}${rot ? ` · rotated ${rot}°` : ''}`;
   for (const th of thumbs.values()) th.el.classList.toggle('cur', th.page.id === S.cur);
 }
 
@@ -459,8 +459,8 @@ export async function offerFile(data, filename, { markClean = false, type = 'app
   const blob = data instanceof Blob ? data : new Blob([data], { type });
   const dl = await downloadsCap;
   if (dl) {
-    try { await dl.save({ filename, data: blob }); if (markClean) setDirty(false); toast(`Salvato «${filename}».`); }
-    catch (e) { toast(e?.code === 'declined' ? 'Salvataggio annullato.' : 'Il salvataggio non è disponibile in questa vista.', e?.code === 'declined' ? 'info' : 'error'); }
+    try { await dl.save({ filename, data: blob }); if (markClean) setDirty(false); toast(`Saved "${filename}".`); }
+    catch (e) { toast(e?.code === 'declined' ? 'Save cancelled.' : 'Saving is not available in this view.', e?.code === 'declined' ? 'info' : 'error'); }
     return;
   }
   if (window.showSaveFilePicker && !navigator.webdriver) {
@@ -468,25 +468,25 @@ export async function offerFile(data, filename, { markClean = false, type = 'app
       const ext = filename.split('.').pop();
       const h = await window.showSaveFilePicker({ suggestedName: filename, types: [{ description: ext.toUpperCase(), accept: { [type]: ['.' + ext] } }] });
       const w = await h.createWritable(); await w.write(blob); await w.close();
-      if (markClean) setDirty(false); toast(`Salvato «${h.name}».`); return;
+      if (markClean) setDirty(false); toast(`Saved "${h.name}".`); return;
     } catch (e) { if (e?.name === 'AbortError') return; /* fall back to a download */ }
   }
   const url = URL.createObjectURL(blob), link = document.createElement('a');
   link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30000);
   if (markClean) setDirty(false);
-  toast(`Scaricato «${filename}».`);
+  toast(`Downloaded "${filename}".`);
 }
 export const baseName = () => safeName(S.files.get(S.pages[0]?.fileId)?.name);
 let saving = false;
 export async function savePdf() {
   if (saving || !S.pages.length) return;
-  closeEditors(); saving = true; const btn = $('#btnSave'); btn.textContent = 'Salvataggio…'; btn.disabled = true;
+  closeEditors(); saving = true; const btn = $('#btnSave'); btn.textContent = 'Saving…'; btn.disabled = true;
   try {
     const { bytes, warnings, redactions } = await buildPdf(S.pages.map(p => p.id), { forSave: true });
     if (warnings.length) toast(warnings.join('. ') + '.', 'error', 6000);
-    if (redactions) toast(`${redactions} ${redactions === 1 ? 'redazione applicata' : 'redazioni applicate'}: il contenuto coperto è stato eliminato dal file.`);
-    await offerFile(bytes, `${baseName()}${S.isSample ? '' : '-modificato'}.pdf`, { markClean: true });
-  } catch (e) { toast(e.user ? e.message : 'Salvataggio non riuscito.', 'error'); console.error(e); }
-  finally { saving = false; btn.textContent = 'Salva PDF'; btn.disabled = false; }
+    if (redactions) toast(`${redactions} ${redactions === 1 ? 'redaction' : 'redactions'} applied: the covered content was removed from the file.`);
+    await offerFile(bytes, `${baseName()}${S.isSample ? '' : '-edited'}.pdf`, { markClean: true });
+  } catch (e) { toast(e.user ? e.message : 'Saving failed.', 'error'); console.error(e); }
+  finally { saving = false; btn.textContent = 'Save PDF'; btn.disabled = false; }
 }

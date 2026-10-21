@@ -1,4 +1,4 @@
-// The example document shown on first load: a delivery report with a logo, a form and a few comments.
+// The sample document shown on first load: a delivery report with a logo, a form and a few comments.
 import { L } from './lib.js';
 import { uid } from './util.js';
 import { writeAnnot, makeRes } from './annots-io.js';
@@ -28,7 +28,7 @@ async function logoPng() {
 
 export async function buildSample() {
   const doc = await L.PDFDocument.create();
-  doc.setTitle('Verbale di consegna apparati'); doc.setAuthor('Ufficio tecnico');
+  doc.setTitle('Equipment delivery report'); doc.setAuthor('IT operations');
   const reg = await doc.embedFont(L.StandardFonts.Helvetica), bold = await doc.embedFont(L.StandardFonts.HelveticaBold);
   const ink = L.rgb(0.1, 0.12, 0.16), grey = L.rgb(0.42, 0.45, 0.5), rule = L.rgb(0.8, 0.82, 0.86);
   const W = 595.28, H = 841.89, M = 64;
@@ -39,44 +39,44 @@ export async function buildSample() {
     return y - lines.length * size * 1.45;
   };
   try { const logo = await doc.embedPng(await logoPng()); p1.drawImage(logo, { x: W - M - 46, y: H - 112, width: 46, height: 46 }); } catch { /* canvas unavailable */ }
-  p1.drawText('UFFICIO TECNICO · SALA SERVER B', { x: M, y: H - 70, size: 9, font: bold, color: grey });
-  p1.drawText('Verbale di consegna apparati', { x: M, y: H - 100, size: 24, font: bold, color: ink });
-  p1.drawText('Rif. ordine 2026/0417 · consegna del 14 ottobre 2026', { x: M, y: H - 122, size: 11, font: reg, color: grey });
+  p1.drawText('IT OPERATIONS · SERVER ROOM B', { x: M, y: H - 70, size: 9, font: bold, color: grey });
+  p1.drawText('Equipment delivery report', { x: M, y: H - 100, size: 24, font: bold, color: ink });
+  p1.drawText('Order ref. 2026/0417 · delivered 14 October 2026', { x: M, y: H - 122, size: 11, font: reg, color: grey });
   p1.drawLine({ start: { x: M, y: H - 138 }, end: { x: W - M, y: H - 138 }, thickness: 0.8, color: rule });
-  const intro = 'Il presente verbale attesta la consegna del materiale elencato presso la sala server B. ';
-  const key = 'Il materiale va verificato entro cinque giorni lavorativi dalla consegna.';
-  let y = para(p1, intro + key + ' Eventuali difformità rispetto all\'ordine vanno segnalate per iscritto al fornitore, indicando il numero di serie dell\'apparato interessato.', M, H - 170, 11, W - 2 * M);
+  const intro = 'This report confirms the delivery of the equipment listed below to server room B. ';
+  const key = 'The equipment must be checked within five working days of delivery.';
+  let y = para(p1, intro + key + ' Any differences from the order must be reported to the supplier in writing, quoting the serial number of the device concerned.', M, H - 170, 11, W - 2 * M);
   y -= 18;
-  p1.drawText('Materiale consegnato', { x: M, y, size: 13, font: bold, color: ink }); y -= 24;
-  const rows = [['Server rack 1U, 2 CPU, 512 GB RAM', '4'], ['Switch Fibre Channel 32G, 48 porte', '2'], ['Storage all-flash, doppio controller', '1'], ['Cavi LC-LC OM4, 3 m', '24'], ['Guide di montaggio rack', '7']];
-  p1.drawText('DESCRIZIONE', { x: M, y, size: 8.5, font: bold, color: grey }); p1.drawText('Q.TÀ', { x: W - M - 30, y, size: 8.5, font: bold, color: grey }); y -= 8;
+  p1.drawText('Equipment delivered', { x: M, y, size: 13, font: bold, color: ink }); y -= 24;
+  const rows = [['1U rack server, 2 CPUs, 512 GB RAM', '4'], ['32G Fibre Channel switch, 48 ports', '2'], ['All-flash storage, dual controller', '1'], ['LC-LC OM4 cables, 3 m', '24'], ['Rack mounting rails', '7']];
+  p1.drawText('DESCRIPTION', { x: M, y, size: 8.5, font: bold, color: grey }); p1.drawText('QTY', { x: W - M - 30, y, size: 8.5, font: bold, color: grey }); y -= 8;
   for (const [desc, q] of rows) {
     p1.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: rule }); y -= 17;
     p1.drawText(desc, { x: M, y, size: 11, font: reg, color: ink }); p1.drawText(q, { x: W - M - 30, y, size: 11, font: reg, color: ink }); y -= 9;
   }
   p1.drawLine({ start: { x: M, y }, end: { x: W - M, y }, thickness: 0.5, color: rule });
   y -= 34;
-  y = para(p1, 'Il personale del data center ha controllato integrità degli imballi e corrispondenza dei colli con la bolla di trasporto. L\'accettazione definitiva avviene con la compilazione e la firma della pagina successiva.', M, y, 11, W - 2 * M);
+  y = para(p1, 'Data centre staff checked that the packaging was intact and that the parcels matched the delivery note. Final acceptance happens when the next page is filled in and signed.', M, y, 11, W - 2 * M);
   y -= 22;
-  para(p1, 'Referente tecnico: Giulia Ferrari, interno 4417, giulia.ferrari@esempio.it', M, y, 11, W - 2 * M);
-  p1.drawText('Pagina 1 di 2', { x: W - M - reg.widthOfTextAtSize('Pagina 1 di 2', 8.5), y: 40, size: 8.5, font: reg, color: grey });
+  para(p1, 'Technical contact: Jane Fuller, extension 4417, jane.fuller@example.com', M, y, 11, W - 2 * M);
+  p1.drawText('Page 1 of 2', { x: W - M - reg.widthOfTextAtSize('Page 1 of 2', 8.5), y: 40, size: 8.5, font: reg, color: grey });
 
   const p2 = doc.addPage([W, H]);
-  p2.drawText('Accettazione', { x: M, y: H - 100, size: 24, font: bold, color: ink });
-  p2.drawText('Compila i campi: sono campi modulo veri, restano modificabili in qualsiasi lettore PDF.', { x: M, y: H - 122, size: 11, font: reg, color: grey });
+  p2.drawText('Acceptance', { x: M, y: H - 100, size: 24, font: bold, color: ink });
+  p2.drawText('Fill in the fields: they are real form fields and stay editable in any PDF reader.', { x: M, y: H - 122, size: 11, font: reg, color: grey });
   const form = doc.getForm();
   const label = (t, yy) => p2.drawText(t, { x: M, y: yy, size: 10, font: bold, color: grey });
-  label('RICEVUTO DA', H - 170);
-  form.createTextField('ricevuto_da').addToPage(p2, { x: M, y: H - 202, width: 300, height: 24, borderWidth: 0.8, borderColor: rule, backgroundColor: L.rgb(1, 1, 1) });
-  label('DATA DI CONSEGNA', H - 230);
-  form.createTextField('data_consegna').addToPage(p2, { x: M, y: H - 262, width: 140, height: 24, borderWidth: 0.8, borderColor: rule, backgroundColor: L.rgb(1, 1, 1) });
-  form.createCheckBox('materiale_integro').addToPage(p2, { x: M, y: H - 300, width: 14, height: 14, borderWidth: 0.8, borderColor: grey });
-  p2.drawText('Materiale integro e conforme all\'ordine', { x: M + 22, y: H - 297, size: 11, font: reg, color: ink });
-  label('NOTE', H - 330);
-  const f3 = form.createTextField('note'); f3.enableMultiline(); f3.addToPage(p2, { x: M, y: H - 430, width: W - 2 * M, height: 90, borderWidth: 0.8, borderColor: rule, backgroundColor: L.rgb(1, 1, 1) });
-  label('FIRMA DEL RICEVENTE', H - 470);
+  label('RECEIVED BY', H - 170);
+  form.createTextField('received_by').addToPage(p2, { x: M, y: H - 202, width: 300, height: 24, borderWidth: 0.8, borderColor: rule, backgroundColor: L.rgb(1, 1, 1) });
+  label('DELIVERY DATE', H - 230);
+  form.createTextField('delivery_date').addToPage(p2, { x: M, y: H - 262, width: 140, height: 24, borderWidth: 0.8, borderColor: rule, backgroundColor: L.rgb(1, 1, 1) });
+  form.createCheckBox('equipment_intact').addToPage(p2, { x: M, y: H - 300, width: 14, height: 14, borderWidth: 0.8, borderColor: grey });
+  p2.drawText('Equipment intact and as ordered', { x: M + 22, y: H - 297, size: 11, font: reg, color: ink });
+  label('NOTES', H - 330);
+  const f3 = form.createTextField('notes'); f3.enableMultiline(); f3.addToPage(p2, { x: M, y: H - 430, width: W - 2 * M, height: 90, borderWidth: 0.8, borderColor: rule, backgroundColor: L.rgb(1, 1, 1) });
+  label('RECIPIENT SIGNATURE', H - 470);
   p2.drawLine({ start: { x: M, y: H - 540 }, end: { x: M + 240, y: H - 540 }, thickness: 0.8, color: grey });
-  p2.drawText('Pagina 2 di 2', { x: W - M - reg.widthOfTextAtSize('Pagina 2 di 2', 8.5), y: 40, size: 8.5, font: reg, color: grey });
+  p2.drawText('Page 2 of 2', { x: W - M - reg.widthOfTextAtSize('Page 2 of 2', 8.5), y: 40, size: 8.5, font: reg, color: grey });
   form.updateFieldAppearances(reg);
 
   const res = makeRes(doc, new Map());
@@ -87,15 +87,15 @@ export async function buildSample() {
     const yy = H - 170 - i * 11 * 1.45, x1 = M + reg.widthOfTextAtSize(ln.slice(0, s - a0), 11), x2 = M + reg.widthOfTextAtSize(ln, 11);
     quads.push([x1, yy + 9.6, x2, yy + 9.6, x1, yy - 2.6, x2, yy - 2.6]);
   });
-  await writeAnnot(doc, p1, { type: 'highlight', quads, color: '#ffd400', opacity: 1, nm: uid('mg-'), author: 'Ufficio tecnico', contents: 'Scadenza per i controlli' }, res);
-  const tx = { type: 'text', rect: [W - M - 190, 150, W - M, 205], rot: 0, size: 11, color: '#d92d20', text: 'Verificare i numeri di serie prima di firmare il verbale.', nm: uid('mg-'), author: 'Ufficio tecnico' };
+  await writeAnnot(doc, p1, { type: 'highlight', quads, color: '#ffd400', opacity: 1, nm: uid('mg-'), author: 'IT operations', contents: 'Deadline for the checks' }, res);
+  const tx = { type: 'text', rect: [W - M - 190, 150, W - M, 205], rot: 0, size: 11, color: '#d92d20', text: 'Check the serial numbers before signing the report.', nm: uid('mg-'), author: 'IT operations' };
   fitText(tx);
   await writeAnnot(doc, p1, tx, res);
-  await writeAnnot(doc, p1, { type: 'note', rect: [W - M + 14, H - 192, W - M + 34, H - 172], rot: 0, color: '#f5b400', nm: uid('mg-'), author: 'Ufficio tecnico', contents: 'Bolla di trasporto n. 88213 allegata al ticket.' }, res);
+  await writeAnnot(doc, p1, { type: 'note', rect: [W - M + 14, H - 192, W - M + 34, H - 172], rot: 0, color: '#f5b400', nm: uid('mg-'), author: 'IT operations', contents: 'Delivery note 88213 is attached to the ticket.' }, res);
   // bookmarks
   const ctx = doc.context, pages = doc.getPages(), oRef = ctx.nextRef(), r1 = ctx.nextRef(), r2 = ctx.nextRef();
-  ctx.assign(r1, ctx.obj({ Title: L.PDFHexString.fromText('Materiale consegnato'), Parent: oRef, Next: r2, Dest: [pages[0].ref, 'XYZ', null, null, null] }));
-  ctx.assign(r2, ctx.obj({ Title: L.PDFHexString.fromText('Accettazione'), Parent: oRef, Prev: r1, Dest: [pages[1].ref, 'XYZ', null, null, null] }));
+  ctx.assign(r1, ctx.obj({ Title: L.PDFHexString.fromText('Equipment delivered'), Parent: oRef, Next: r2, Dest: [pages[0].ref, 'XYZ', null, null, null] }));
+  ctx.assign(r2, ctx.obj({ Title: L.PDFHexString.fromText('Acceptance'), Parent: oRef, Prev: r1, Dest: [pages[1].ref, 'XYZ', null, null, null] }));
   ctx.assign(oRef, ctx.obj({ Type: 'Outlines', First: r1, Last: r2, Count: 2 }));
   doc.catalog.set(L.PDFName.of('Outlines'), oRef);
   return doc.save();

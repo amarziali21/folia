@@ -39,7 +39,7 @@ async function applyEdits(doc, fileId, pageMap, { preview = false } = {}) {
   }
   let renumbered = false;
   if (plan.length) {
-    if (!(await engine.startEngine())) throw userError('La modifica del testo e la redazione richiedono il motore MuPDF, che non si è caricato. Ricarica la pagina e riprova.');
+    if (!(await engine.startEngine())) throw userError('Text editing and redaction need the MuPDF engine, which did not load. Reload the page and try again.');
     const out = await engine.rewrite(await doc.save({ updateFieldAppearances: false, addDefaultPage: false }), plan);
     doc = await L.PDFDocument.load(out, { updateMetadata: false });
     renumbered = true;
@@ -79,7 +79,7 @@ function redactRectsFor(fileId, idx) {
 
 export async function buildPdf(pageIds, { forSave = false } = {}) {
   const list = pageIds.map(pageOf).filter(Boolean);
-  if (!list.length) throw userError('Non ci sono pagine da salvare.');
+  if (!list.length) throw userError('There are no pages to save.');
   const warnings = [];
   // working document per source file
   const libs = new Map(), renum = new Set();
@@ -133,7 +133,7 @@ export async function buildPdf(pageIds, { forSave = false } = {}) {
     }
     outPages.push(page);
   }
-  if (dropped) warnings.push(`${dropped} ${dropped === 1 ? 'commento coperto' : 'commenti coperti'} dalle redazioni ${dropped === 1 ? 'è stato rimosso' : 'sono stati rimossi'}`);
+  if (dropped) warnings.push(`${dropped} ${dropped === 1 ? 'comment was' : 'comments were'} removed because the redactions cover ${dropped === 1 ? 'it' : 'them'}`);
   // form fields whose widgets are on the kept pages
   const widgets = new Set();
   for (const page of outPages) for (const r of page.node.Annots()?.asArray() || []) {
@@ -171,7 +171,7 @@ export async function buildPdf(pageIds, { forSave = false } = {}) {
   out.setProducer('Margine PDF'); out.setModificationDate(new Date());
   // form values typed in the editor
   if (Object.keys(S.formValues).length && out.catalog.get(N('AcroForm'))) {
-    let form = null; try { form = out.getForm(); } catch { warnings.push('modulo non leggibile'); }
+    let form = null; try { form = out.getForm(); } catch { warnings.push('the form could not be read'); }
     if (form) for (const [key, v] of Object.entries(S.formValues)) {
       const name = key.slice(key.indexOf('|') + 1);
       let fld = null; try { fld = form.getField(name); } catch { continue; }
@@ -180,7 +180,7 @@ export async function buildPdf(pageIds, { forSave = false } = {}) {
         else if (fld instanceof L.PDFCheckBox) v ? fld.check() : fld.uncheck();
         else if (fld instanceof L.PDFRadioGroup) v ? fld.select(v) : fld.clear();
         else if (fld instanceof L.PDFDropdown || fld instanceof L.PDFOptionList) { const ch = S.fields.get(key)?.options?.find(o => o.exportValue === v); fld.select(ch?.displayValue && fld.getOptions().includes(ch.displayValue) ? ch.displayValue : v); }
-      } catch { warnings.push(`campo «${name}» non compilato`); }
+      } catch { warnings.push(`field "${name}" could not be filled in`); }
     }
   }
   let bytes;
@@ -192,7 +192,7 @@ export async function buildPdf(pageIds, { forSave = false } = {}) {
   // protection
   const pr = S.doc.protect;
   if (forSave && pr && (pr.user || pr.owner)) {
-    if (!(await engine.startEngine())) throw userError('La protezione con password richiede il motore MuPDF, che non si è caricato.');
+    if (!(await engine.startEngine())) throw userError('Password protection needs the MuPDF engine, which did not load.');
     bytes = await engine.encrypt(bytes, { user: pr.user || '', owner: pr.owner || pr.user, permissions: permissionBits(pr) });
   }
   return { bytes, warnings, redactions };

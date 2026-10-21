@@ -23,7 +23,7 @@ function dispFrame(p) {
 }
 
 export const HF_SLOTS = ['tl', 'tc', 'tr', 'bl', 'bc', 'br'];
-export const HF_TOKENS = [['{pagina}', 'numero di pagina'], ['{totale}', 'pagine totali'], ['{data}', 'data di oggi'], ['{file}', 'nome del file'], ['{bates}', 'numero Bates']];
+export const HF_TOKENS = [['{page}', 'Page number'], ['{total}', 'Page count'], ['{date}', 'Today\'s date'], ['{file}', 'File name'], ['{bates}', 'Bates number']];
 export function pageInRange(spec, i, total) {
   if (!spec || spec === 'all') return true;
   const m = String(spec).match(/^\s*(\d*)\s*-\s*(\d*)\s*$/);
@@ -32,11 +32,11 @@ export function pageInRange(spec, i, total) {
   return set.includes(i + 1);
 }
 function hfText(t, hf, i, total, fileName, batesIndex) {
-  const date = new Date().toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const date = new Date().toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' });
   const b = hf.bates || {};
   const bates = (b.prefix || '') + String((+b.start || 1) + batesIndex).padStart(+b.digits || 6, '0') + (b.suffix || '');
-  return t.replace(/\{pagina\}/g, String((+hf.startNumber || 1) + i)).replace(/\{totale\}/g, String((+hf.startNumber || 1) + total - 1))
-    .replace(/\{data\}/g, date).replace(/\{file\}/g, fileName || '').replace(/\{bates\}/g, bates);
+  return t.replace(/\{page\}/g, String((+hf.startNumber || 1) + i)).replace(/\{total\}/g, String((+hf.startNumber || 1) + total - 1))
+    .replace(/\{date\}/g, date).replace(/\{file\}/g, fileName || '').replace(/\{bates\}/g, bates);
 }
 // i = index of the page in the output, total = output page count
 export function hfItems(hf, p, i, total, fileName) {
@@ -97,7 +97,7 @@ export async function readOutline(pdf, pageIds) {
   const walk = async (items, level) => {
     for (const it of items) {
       const idx = it.dest ? await resolve(it.dest) : null;
-      out.push({ id: 'b' + Math.random().toString(36).slice(2, 10), title: (it.title || '').trim() || 'Senza titolo', pageId: idx != null ? pageIds[idx] ?? null : null, level });
+      out.push({ id: 'b' + Math.random().toString(36).slice(2, 10), title: (it.title || '').trim() || 'Untitled', pageId: idx != null ? pageIds[idx] ?? null : null, level });
       if (it.items?.length && level < 8) await walk(it.items, level + 1);
     }
   };
