@@ -35,33 +35,6 @@ Every change is a JSON object in the editor state (`src/state.js`), and undo and
 3. Comments, document tools, form values, bookmarks and properties are written.
 4. If requested, the file is encrypted.
 
-## Development
-
-```bash
-npm ci
-npm run build      # builds dist/
-npm run serve      # http://127.0.0.1:8790/
-npm run dev        # rebuild on change + server
-npx playwright install chromium
-npm test           # unit and end-to-end tests (screenshots in test-results/)
-```
-
-## Deploying to Cloudflare Pages
-
-The `.github/workflows/ci.yml` workflow builds, runs the tests and deploys:
-
-- **main** goes to production;
-- other branches and pull requests get a preview deployment.
-
-It needs two repository secrets (*Settings → Secrets and variables → Actions*):
-
-- `CLOUDFLARE_API_TOKEN`: a token with the *Account › Cloudflare Pages › Edit* permission;
-- `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID.
-
-The first deploy creates the `folia` Pages project. Until the secrets exist, deploying is skipped without failing the run.
-
-The `deps-snapshot.yml` workflow copies the npm packages used by the build to the `dev-deps` branch. It only serves development environments without npm access and can be ignored.
-
 ## Licence
 
 AGPL-3.0-or-later (see `LICENSE`), because the project includes MuPDF. Anyone who uses a deployed copy over a network is entitled to its source code. If this repository is private, either limit the site to your own team (for example with Cloudflare Access) or publish the source somewhere its users can get it.
